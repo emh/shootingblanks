@@ -1,0 +1,2 @@
+# shootingblanks
+A JavaScript project
