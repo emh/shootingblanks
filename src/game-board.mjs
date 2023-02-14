@@ -6,10 +6,10 @@ export class GameBoard extends HTMLElement {
         const style = document.createElement('style');
 
         style.textContent = `
-            :host { 
+            :host {
                 display: flex;
                 flex-wrap: wrap;
-                gap: 55px;
+                gap: 20px;
                 user-select: none;
                 max-width: 450px;
                 justify-content: center;
@@ -26,19 +26,28 @@ export class GameBoard extends HTMLElement {
                 align-items: center;
                 justify-content: center;
                 border-radius: var(--letter-border-radius);
-                height: 50px;
-                width: 50px;
-                font-size: 40px;
+                height: 32px;
+                width: 32px;
+                font-size: 24px;
                 text-transform: uppercase;
                 box-sizing: border-box;
                 cursor: pointer;
                 box-shadow: var(--letter-box-shadow);
-            }
-
-            .cell {
                 background-color: var(--letter-background-color);
                 border: solid 1px var(--border-color);
                 color: var(--letter-color);
+            }
+
+            .active {
+                border: solid 2px var(--letter-border-color-active);
+                background-color: var(--letter-background-color-active);
+            }
+
+            .revealed {
+                background-color: var(--letter-background-color-start);
+                border-color: var(--letter-border-color-start);
+                color: var(--letter-color-start);
+                box-shadow: var(--letter-box-shadow-start);
             }
         `;
 
@@ -47,21 +56,33 @@ export class GameBoard extends HTMLElement {
         let word = document.createElement('div');
         word.className = 'word';
 
+        let board = '';
+
         state.idiom.split('').forEach((l, i) => {
             if (l === ' ') {
-                shadowRoot.append(word);    
+                shadowRoot.append(word);
 
                 word = document.createElement('div');
                 word.className = 'word';
+
+                board += ' ';
             } else {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
+                if (state.position === i) cell.classList.add('active');
+                if (state.revealed.includes(i)) cell.classList.add('revealed');
 
-                cell.textContent = state.revealed.includes(i) ? l : ' ';
+                const cellLetter = state.revealed.includes(i) ? l : state.guess[i];
+
+                board += cellLetter;
+
+                cell.textContent = cellLetter;
 
                 word.append(cell);
             }
         });
+
+        state.finished = (state.idiom === board);
 
         shadowRoot.append(word);
     }

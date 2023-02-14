@@ -20,8 +20,7 @@ function renderKeyboard() {
     const keys = [
         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].map(letter),
         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'].map(letter),
-        [control('⏎'), ...['z', 'x', 'c', 'v', 'b', 'n', 'm'].map(letter), control('⌫')],
-        [{ value: ' ', space: true }]
+        [...['z', 'x', 'c', 'v', 'b', 'n', 'm'].map(letter), control('⌫')],
     ];
 
     const keyboard = new VirtualKeyboard(keys);
@@ -36,17 +35,46 @@ function renderBoard(state) {
 
     container.innerHTML = '';
     container.append(gameBoard);
-}
 
-function renderGuess(state) {
-    const div = document.getElementById('guess');
+    if (state.finished) {
+        showMessage(`You got it after ${state.revealed.length} letter${state.revealed.length === 1 ? '' : 's'}.`);
 
-    div.textContent = state.guess;
+        clearTimeout(timeoutId);
+    }
 }
 
 function render(state) {
     renderBoard(state);
     renderKeyboard();
+}
+
+function moveToPreviousGuessLetter(state) {
+    let i = state.position;
+
+    do {
+        i -= 1;
+    } while (
+        (state.idiom[i] === ' ' ||
+            state.revealed.includes(i)) &&
+        i > 0
+    )
+
+    state.position = i;
+}
+
+function moveToNextBlank(state) {
+    let i = state.position;
+
+    do {
+        i += 1;
+    } while (
+        (state.idiom[i] === ' ' ||
+            state.guess[i] !== ' ' ||
+            state.revealed.includes(i)) &&
+        i < state.idiom.length
+    )
+
+    state.position = i;
 }
 
 function startClock(state) {
@@ -55,23 +83,23 @@ function startClock(state) {
         const letterCount = state.idiom.replaceAll(' ', '').length;
 
         let i = null;
-        console.log('before');
         do {
             i = Math.floor(Math.random() * state.idiom.length);
-            console.log(i);
         } while (state.idiom[i] === ' ' || state.revealed.includes(i));
-        console.log('after');
+
+        if (i === state.position) {
+            console.log('moving');
+            moveToNextBlank(state);
+        }
 
         state.revealed.push(i);
         state.seconds += 1;
 
-        console.log(state.revealed.length, letterCount);
         if (state.revealed.length < letterCount) {
-            console.log('again');
             timeoutId = setTimeout(fn, (state.seconds + 1) * 1000);
-        } else {
-            console.log('done');
         }
+
+        console.log(state);
 
         renderBoard(state);
     };
@@ -109,25 +137,29 @@ function clearPopup() {
 }
 
 function handleBackspace(state) {
-    if (state.guess.length > 0) state.guess = state.guess.substring(0, state.guess.length - 1);
+    const temp = state.guess.split('');
+
+    moveToPreviousGuessLetter(state);
+
+    temp.splice(state.position, 1, ' ');
+
+    state.guess = temp.join('');
+
 }
 
 function handleLetterInput(state, letter) {
-    state.guess = state.guess + letter;
-}
+    const temp = state.guess.split('');
 
-function handleEnter(state) {
-    if (state.guess === state.idiom) {
-        showMessage(`You got it after ${state.revealed.length} letter${state.revealed.length === 1 ? '' : 's'}.`);
+    temp.splice(state.position, 1, letter);
 
-        clearTimeout(timeoutId);
-    } else {
-        showMessage('nope.');
-    }
+    state.guess = temp.join('');
+
+    moveToNextBlank(state);
 }
 
 function handleEscape(state) {
-    state.guess = '';
+    state.guess = ' '.repeat(state.idiom.length);
+    state.position = 0;
 }
 
 function setupKeyboardHandler(state) {
@@ -140,23 +172,19 @@ function setupKeyboardHandler(state) {
 
         if (key === '⌫') {
             handleBackspace(state);
-        } else if (key === '⏎') {
-            handleEnter(state);
         } else if (key.length === 1) {
             handleLetterInput(state, key);
         }
 
-        renderGuess(state);
+        renderBoard(state);
     });
 
     document.addEventListener('keydown', (e) => {
-        clearPopup(); 
+        console.log(e);
+        clearPopup();
         switch (e.key) {
             case 'Backspace':
                 handleBackspace(state);
-                break;
-            case 'Enter':
-                handleEnter(state);
                 break;
             case 'Escape':
                 handleEscape(state);
@@ -169,7 +197,7 @@ function setupKeyboardHandler(state) {
                 }
         }
 
-        renderGuess(state);
+        renderBoard(state);
     });
 }
 
@@ -181,11 +209,10 @@ async function main() {
     const state = {
         idiom,
         revealed: [],
-        guess: '',
+        guess: ' '.repeat(idiom.length),
+        position: 0,
         seconds: 0
     };
-
-    console.log(state);
 
     render(state);
     startClock(state);

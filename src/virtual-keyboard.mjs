@@ -6,7 +6,7 @@ export class VirtualKeyboard extends HTMLElement {
         const style = document.createElement('style');
 
         style.textContent = `
-            :host { 
+            :host {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
@@ -28,15 +28,15 @@ export class VirtualKeyboard extends HTMLElement {
                 border-radius: var(--letter-border-radius);
                 background-color: var(--key-background-color);
                 color: var(--key-color);
-                height: 40px;
-                width: 40px;
+                height: 30px;
+                width: 30px;
                 font-size: 24px;
                 text-transform: uppercase;
                 box-sizing: border-box;
             }
 
             .control {
-                width: 90px;
+                width: 120px;
             }
 
             .space {

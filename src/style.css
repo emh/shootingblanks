@@ -230,15 +230,12 @@ html, body, #app {
 #game {
   flex: 1;
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  margin: 10px;
+  flex-direction: column;
+  margin-top: 10px;
   gap: 10px;
   user-select: none;
-}
-
-#middle {
-  flex: 1;
 }
 
 .buttons {
