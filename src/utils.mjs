@@ -8,9 +8,9 @@ export const key = () => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export const getHistory = () => JSON.parse(localStorage.getItem('history')) ?? {};
+export const getHistory = () => JSON.parse(localStorage.getItem('shootingblanks')) ?? {};
 
-export const putHistory = (history) => localStorage.setItem('history', JSON.stringify(history));
+export const putHistory = (history) => localStorage.setItem('shootingblanks', JSON.stringify(history));
 
 export const isEmpty = (obj) => Object.keys(obj).length === 0;
 
