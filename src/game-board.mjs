@@ -1,5 +1,6 @@
 export class GameBoard extends HTMLElement {
     constructor(state) {
+        const { game } = state;
         super();
 
         const shadowRoot = this.attachShadow({ mode: 'open' });
@@ -58,7 +59,7 @@ export class GameBoard extends HTMLElement {
 
         let board = '';
 
-        state.idiom.split('').forEach((l, i) => {
+        game.idiom.split('').forEach((l, i) => {
             if (l === ' ') {
                 shadowRoot.append(word);
 
@@ -69,10 +70,10 @@ export class GameBoard extends HTMLElement {
             } else {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
-                if (state.position === i) cell.classList.add('active');
-                if (state.revealed.includes(i)) cell.classList.add('revealed');
+                if (game.position === i) cell.classList.add('active');
+                if (game.revealed.includes(i)) cell.classList.add('revealed');
 
-                const cellLetter = state.revealed.includes(i) ? l : state.guess[i];
+                const cellLetter = game.revealed.includes(i) ? l : game.guess[i];
 
                 board += cellLetter;
 
@@ -81,8 +82,6 @@ export class GameBoard extends HTMLElement {
                 word.append(cell);
             }
         });
-
-        state.finished = (state.idiom === board);
 
         shadowRoot.append(word);
     }
