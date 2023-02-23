@@ -36,7 +36,7 @@ export class VirtualKeyboard extends HTMLElement {
             }
 
             .control {
-                width: 120px;
+                width: 90px;
             }
 
             .space {
@@ -66,6 +66,7 @@ export class VirtualKeyboard extends HTMLElement {
     }
 
     keyPress(key) {
+        console.log(key);
         this.dispatchEvent(new CustomEvent('keypress', { detail: { key } }));
     }
 }

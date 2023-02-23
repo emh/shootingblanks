@@ -14,18 +14,18 @@ export const putHistory = (history) => localStorage.setItem('shootingblanks', JS
 
 export const isEmpty = (obj) => Object.keys(obj).length === 0;
 
-export const isFinished = (game) => {
+export const isFinished = (state) => {
     let board = '';
 
-    game.idiom.split('').forEach((l, i) => {
+    state.game.idiom.split('').forEach((l, i) => {
         if (l === ' ') {
             board += ' ';
         } else {
-            const cellLetter = game.revealed.includes(i) ? l : game.guess[i];
+            const cellLetter = state.game.revealed.includes(i) ? l : state.guess[i];
 
             board += cellLetter;
         }
     });
 
-    return game.idiom === board;
+    return state.game.idiom === board;
 }

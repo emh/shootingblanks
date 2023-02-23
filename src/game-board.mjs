@@ -70,10 +70,10 @@ export class GameBoard extends HTMLElement {
             } else {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
-                if (game.position === i) cell.classList.add('active');
+                if (state.isSolving && state.position === i) cell.classList.add('active');
                 if (game.revealed.includes(i)) cell.classList.add('revealed');
 
-                const cellLetter = game.revealed.includes(i) ? l : game.guess[i];
+                const cellLetter = game.revealed.includes(i) ? l : game.over ? game.idiom[i] : state.guess[i];
 
                 board += cellLetter;
 

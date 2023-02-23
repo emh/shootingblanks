@@ -36,21 +36,26 @@ function saveGame(game) {
     putHistory(history);
 }
 
-function renderKeyboard() {
+function renderKeyboard(state) {
     const container = document.getElementById('keyboard');
+    container.innerHTML = '';
 
     const control = (value) => ({ value, control: true });
     const letter = (value) => ({ value });
-    const keys = [
+
+    const keys = state.isSolving ? [
         ['q', 'w', 'e', 'r', 't', 'y', 'u', 'i', 'o', 'p'].map(letter),
         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'].map(letter),
-        [...['z', 'x', 'c', 'v', 'b', 'n', 'm'].map(letter), control('⌫')],
+        [control('⏎'), ...['z', 'x', 'c', 'v', 'b', 'n', 'm'].map(letter), control('⌫')],
+    ] : [
+        [ control('Solve!')]
     ];
 
     const keyboard = new VirtualKeyboard(keys);
 
-    container.innerHTML = '';
     container.append(keyboard);
+
+    setupVirtualKeyboardHandler(state);
 }
 
 function renderBoard(state) {
@@ -70,11 +75,12 @@ function renderBoard(state) {
 
 function render(state) {
     renderBoard(state);
-    renderKeyboard();
+
+    if (!state.game.over) renderKeyboard(state);
 }
 
 function moveToPreviousGuessLetter(state) {
-    let i = state.game.position;
+    let i = state.position;
 
     do {
         i -= 1;
@@ -84,22 +90,22 @@ function moveToPreviousGuessLetter(state) {
         i > 0
     )
 
-    state.game.position = i;
+    state.position = i;
 }
 
-function moveToNextBlank({ game }) {
-    let i = game.position;
+function moveToNextBlank(state) {
+    let i = state.position;
 
     do {
         i += 1;
     } while (
-        (game.idiom[i] === ' ' ||
-            game.guess[i] !== ' ' ||
-            game.revealed.includes(i)) &&
-        i < game.idiom.length
+        (state.game.idiom[i] === ' ' ||
+            state.guess[i] !== ' ' ||
+            state.game.revealed.includes(i)) &&
+        i < state.game.idiom.length
     )
 
-    game.position = i;
+    state.position = i;
 }
 
 function startClock(state) {
@@ -115,26 +121,21 @@ function startClock(state) {
             m++;
         } while (m < 1000 && (game.idiom[i] === ' ' || game.revealed.includes(i)));
 
-        if (i === game.position) {
+        if (i === state.position) {
             moveToNextBlank({ game });
         }
 
         game.revealed.push(i);
         game.ticks += 1;
 
-        if (isFinished(state.game)) {
-            state.streak++;
-            game.over = true;
-        }
-
         if (!game.over && game.revealed.length < letterCount) {
             timeoutId = setTimeout(fn, (game.ticks + 1) * 1000);
         }
 
-        renderBoard(state);
+        render(state);
     };
 
-    timeoutId = setTimeout(fn, 1000);
+    timeoutId = setTimeout(fn, (game.ticks + 1) * 1000);
 }
 
 function clearPopup() {
@@ -151,36 +152,54 @@ function clearPopup() {
 }
 
 function handleBackspace(state) {
-    const temp = state.game.guess.split('');
+    const temp = state.guess.split('');
 
     moveToPreviousGuessLetter(state);
 
-    temp.splice(state.game.position, 1, ' ');
+    temp.splice(state.position, 1, ' ');
 
-    state.game.guess = temp.join('');
+    state.guess = temp.join('');
 }
 
 function handleLetterInput(state, letter) {
-    const temp = state.game.guess.split('');
+    const temp = state.guess.split('');
 
-    temp.splice(state.game.position, 1, letter);
+    temp.splice(state.position, 1, letter);
 
-    state.game.guess = temp.join('');
+    state.guess = temp.join('');
 
-    if (isFinished(state.game)) {
-        state.streak++;
-        state.game.over = true;
-    } else {
-        moveToNextBlank(state);
-    }
+    moveToNextBlank(state);
 }
 
 function handleEscape(state) {
-    state.game.guess = ' '.repeat(state.game.idiom.length);
-    state.game.position = 0;
+    state.guess = ' '.repeat(state.game.idiom.length);
+    state.position = 0;
 }
 
-function setupKeyboardHandler(state) {
+function handleEnter(state) {
+    if (isFinished(state)) {
+        state.streak++;
+        state.game.over = true;
+    } else {
+        showFailure(state);
+        state.guess = ' '.repeat(state.game.idiom.length);
+        state.position = 0;
+        state.isSolving = false;
+        startClock(state);
+    }
+
+    render(state);
+}
+
+function handleSolve(state) {
+    clearTimeout(timeoutId);
+
+    state.isSolving = true;
+
+    render(state);
+}
+
+function setupVirtualKeyboardHandler(state) {
     const keyboard = document.querySelector('virtual-keyboard');
 
     const game = state.game;
@@ -192,19 +211,28 @@ function setupKeyboardHandler(state) {
 
         const key = event.detail.key;
 
-        console.log(game.position, game.idiom.length);
+        console.log(key);
 
         if (key === '⌫') {
             handleBackspace(state);
-        } else if (key.length === 1 && game.position < game.idiom.length) {
+        } else if (key === '⏎') {
+            handleEnter(state);
+        } else if (key.length === 1 && state.position < game.idiom.length) {
             handleLetterInput(state, key);
+        } else if (key === 'Solve!') {
+            handleSolve(state);
         }
 
-        renderBoard(state);
+        render(state);
     });
 
+}
+
+function setupKeyboardHandler(state) {
+    const game = state.game;
+
     document.addEventListener('keydown', (e) => {
-        if (game.over) return;
+        if (game.over || !state.isSolving) return;
 
         clearPopup();
 
@@ -215,17 +243,18 @@ function setupKeyboardHandler(state) {
             case 'Escape':
                 handleEscape(state);
                 break;
+            case 'Enter':
+                handleEnter(state);
+                break;
             default:
-                console.log(game.position, game.idiom.length);
-
-                if (isLetter(e.key) && game.position < game.idiom.length) {
+                if (isLetter(e.key) && state.position < game.idiom.length) {
                     handleLetterInput(state, e.key);
                 } else {
                     console.log(e.key);
                 }
         }
 
-        renderBoard(state);
+        render(state);
     });
 }
 
@@ -351,17 +380,13 @@ function init(idioms) {
     const streak = calculateStreak(history);
     const idiom = idioms[calcIndex(key(), idioms.length)];
 
-    console.log(idiom);
-
     let game = loadGame();
 
     if (!game) {
         game = {
             idiom,
             revealed: [],
-            guess: ' '.repeat(idiom.length),
-            ticks: 0,
-            position: 0
+            ticks: 0
         };
 
         saveGame(game);
@@ -370,8 +395,29 @@ function init(idioms) {
     return {
         streak,
         newUser,
-        game
+        game,
+        isSolving: false,
+        guess: ' '.repeat(idiom.length),
+        position: 0
     };
+}
+
+function showFailure(state) {
+    const app = document.getElementById('app');
+    const error = new PopupMessage('error');
+
+    const message = "That's not it, try again!";
+
+    const content = document.createElement('div');
+    content.setAttribute('slot', 'content');
+    content.innerHTML = `${message}<br/><br/><div class="buttons"><button>OK</button>`;
+
+    error.append(content);
+    app.append(error);
+
+    error.addEventListener('buttonClick', (e) => {
+        app.removeChild(error);
+    });
 }
 
 function showPopup(state) {
@@ -385,11 +431,14 @@ function showPopup(state) {
 
         if (state.newUser) {
             message = `
-                <p>Welcome to Shooting Blanks.</p><p>Try to guess the phrase before all of the letters are revealed to you.</p>
+                <p>Welcome to Shooting Blanks.</p>
+                <p>Try to guess the phrase before all of the letters are revealed to you.</p>
+                <p>Click Solve when you think you got it and then enter your guess with the keyboard.</p>
             `;
         } else {
             message = `
                 <p>Welcome back!</p>
+                <p>Click Solve when you think you got it and then enter your guess with the keyboard.</p>
                 ${state.streak > 0 ?
                     `<p>Your streak is currently ${state.streak}.</p>` :
                     '<p>Starting a new streak today - come back daily to keep it going.'
