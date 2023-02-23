@@ -122,13 +122,20 @@ function startClock(state) {
         } while (m < 1000 && (game.idiom[i] === ' ' || game.revealed.includes(i)));
 
         if (i === state.position) {
-            moveToNextBlank({ game });
+            moveToNextBlank(state);
         }
 
         game.revealed.push(i);
         game.ticks += 1;
 
-        if (!game.over && game.revealed.length < letterCount) {
+        console.log(game.revealed.length, letterCount);
+
+        if (game.revealed.length === letterCount) {
+            game.over = true;
+            state.streak++;
+        }
+
+        if (!game.over) {
             timeoutId = setTimeout(fn, (game.ticks + 1) * 1000);
         }
 
@@ -211,8 +218,6 @@ function setupVirtualKeyboardHandler(state) {
 
         const key = event.detail.key;
 
-        console.log(key);
-
         if (key === '⌫') {
             handleBackspace(state);
         } else if (key === '⏎') {
@@ -266,8 +271,6 @@ const calcIndex = (k, n, o = 0) => {
     const r = (s * f) - Math.floor(s * f);
     const i = Math.floor(n * r);
 
-    console.log({ k, n, o, f, s, r, i });
-
     return i;
 }
 
@@ -294,15 +297,12 @@ function calculateStreak(history) {
         streak = 0;
     }
 
-    console.log({ streak });
-
     return streak;
 }
 
 function emojiIdiom(idiom, revealed) {
     return idiom.split('').map((l, i) => {
         if (l === ' ') return l;
-        console.log(l, i);
 
         return revealed.includes(i) ? '🟨' : '⬛';
     }).join('');
@@ -474,7 +474,6 @@ function showPopup(state) {
 }
 
 async function main() {
-    console.log('main');
     const idioms = await loadFile(idiomsFile);
     const state = init(idioms);
 
