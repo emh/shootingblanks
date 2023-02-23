@@ -36,7 +36,11 @@ export class VirtualKeyboard extends HTMLElement {
             }
 
             .control {
-                width: 90px;
+                width: 75px;
+            }
+
+            .solve {
+                width: 120px;
             }
 
             .space {
@@ -55,7 +59,7 @@ export class VirtualKeyboard extends HTMLElement {
             for (let key of row) {
                 const keyDiv = document.createElement('div');
 
-                keyDiv.className = `key${key.disabled ? ' disabled' : ''}${key.control ? ' control' : ''}${key.space ? ' space' : ''}`;
+                keyDiv.className = `key${key.disabled ? ' disabled' : ''}${key.control ? ' control' : ''}${key.space ? ' space' : ''}${key.value === 'Solve' ? ' solve' : ''}`;
                 keyDiv.textContent = key.value;
                 if (!key.disabled) keyDiv.addEventListener('click', () => this.keyPress(key.value));
                 rowDiv.append(keyDiv);

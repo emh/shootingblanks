@@ -48,7 +48,7 @@ function renderKeyboard(state) {
         ['a', 's', 'd', 'f', 'g', 'h', 'j', 'k', 'l'].map(letter),
         [control('⏎'), ...['z', 'x', 'c', 'v', 'b', 'n', 'm'].map(letter), control('⌫')],
     ] : [
-        [ control('Solve!')]
+        [ control('Solve')]
     ];
 
     const keyboard = new VirtualKeyboard(keys);
@@ -219,7 +219,7 @@ function setupVirtualKeyboardHandler(state) {
             handleEnter(state);
         } else if (key.length === 1 && state.position < game.idiom.length) {
             handleLetterInput(state, key);
-        } else if (key === 'Solve!') {
+        } else if (key === 'Solve') {
             handleSolve(state);
         }
 
