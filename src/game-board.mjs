@@ -44,7 +44,7 @@ export class GameBoard extends HTMLElement {
                 background-color: var(--letter-background-color-active);
             }
 
-            .revealed {
+            .guessed {
                 background-color: var(--letter-background-color-start);
                 border-color: var(--letter-border-color-start);
                 color: var(--letter-color-start);
@@ -71,7 +71,7 @@ export class GameBoard extends HTMLElement {
                 const cell = document.createElement('div');
                 cell.classList.add('cell');
                 if (state.isSolving && state.position === i) cell.classList.add('active');
-                if (game.revealed.includes(i)) cell.classList.add('revealed');
+                if (state.guess[i] !== ' ' && !game.revealed.includes(i)) cell.classList.add('guessed');
 
                 const cellLetter = game.revealed.includes(i) ? l : game.over ? game.idiom[i] : state.guess[i];
 

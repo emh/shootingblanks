@@ -300,11 +300,13 @@ function calculateStreak(history) {
     return streak;
 }
 
+const calcScore = (revealed, letterCount) => Math.round((1 - (revealed / letterCount)) * 100);
+
 function emojiIdiom(idiom, revealed) {
     return idiom.split('').map((l, i) => {
         if (l === ' ') return l;
 
-        return revealed.includes(i) ? '🟨' : '⬛';
+        return revealed.includes(i) ? '⬜' : '🟨';
     }).join('');
 }
 
@@ -314,7 +316,8 @@ function showSuccess(state) {
 
     const message = `
         <p>You're done!</p>
-        <p>${revealed < letterCount ? `You needed ${revealed} of ${letterCount} letters.` : 'You just watched it play out huh?'}</p>
+        <p>${revealed < letterCount ? `You solved it after ${revealed} letters.` : 'You just watched it play out huh?'}</p>
+        <p>Your score is ${calcScore(revealed, letterCount)}</p>
         <div>
         ${emojiIdiom(state.game.idiom, state.game.revealed)}
         </div>
@@ -341,10 +344,12 @@ function showSuccess(state) {
         if (name === 'Share' || name === 'Copy') {
             goal('Shared');
 
+            console.log(state.game.revealed.length, state.game.idiom.length);
+
             const share = [
-                'Shooting Blanks',
-                'by @emh',
+                'Shooting Blanks by @emh',
                 emojiIdiom(state.game.idiom, state.game.revealed),
+                `Score: ${calcScore(state.game.revealed.length, countLetters(state.game.idiom))}`,
                 `Streak: ${state.streak}`,
                 '',
                 'https://emh.io/shootingblanks'
