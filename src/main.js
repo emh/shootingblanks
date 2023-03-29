@@ -212,9 +212,9 @@ function setupVirtualKeyboardHandler(state) {
     const game = state.game;
 
     keyboard.addEventListener('keypress', (event) => {
-        if (game.over) return;
-
         clearPopup();
+
+        if (game.over) return;
 
         const key = event.detail.key;
 
@@ -237,9 +237,10 @@ function setupKeyboardHandler(state) {
     const game = state.game;
 
     document.addEventListener('keydown', (e) => {
+        clearPopup();
+
         if (game.over || !state.isSolving) return;
 
-        clearPopup();
 
         switch (e.key) {
             case 'Backspace':
