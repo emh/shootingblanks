@@ -5,10 +5,14 @@ import idiomsFile from './idioms.txt';
 import { VirtualKeyboard } from './virtual-keyboard.mjs';
 import { GameBoard } from './game-board.mjs';
 import { PopupMessage } from './popup-message.mjs';
+import { loadFile, key, getHistory, putHistory, isEmpty, isFinished } from './utils.mjs';
+import { prng } from './prng.mjs';
 
 let timeoutId = null;
 
-import { loadFile, key, getHistory, putHistory, isEmpty, isFinished } from './utils.mjs';
+const seed = Date.parse(key());
+const random = prng(seed);
+const randInt = (n) => Math.floor(random() * n);
 
 const isLetter = (s) => s.length === 1 && ((s >= 'a' && s <= 'z') || (s >= 'A' && s <= 'Z'));
 
@@ -108,18 +112,61 @@ function moveToNextBlank(state) {
     state.position = i;
 }
 
+function getLetters(game) {
+    let wordIndex = 0;
+
+    return game.idiom.split('').map((letter, i) => {
+        if (letter === ' ') wordIndex++;
+
+        return {
+            letter,
+            i,
+            wordIndex,
+            revealed: game.revealed.includes(i)
+        };
+    }).filter((l) => l.letter !== ' ');
+}
+
+function countUnrevealed(letters) {
+    return letters.reduce((acc, letter) => {
+        const { wordIndex, revealed } = letter;
+
+        acc[wordIndex] ||= 0;
+
+        if (!revealed) acc[wordIndex]++;
+
+        return acc;
+    }, {});
+}
+
+function nextLetter(game) {
+    const letters = getLetters(game);
+    const unrevealedByWord = countUnrevealed(letters);
+    const maxUnrevealed = Math.max(...Object.values(unrevealedByWord));
+
+    const nextLetters = letters.filter((letter) => {
+        return unrevealedByWord[letter.wordIndex] === maxUnrevealed;
+    }).filter((letter) => {
+        return !letter.revealed;
+    })
+
+    console.log(letters, nextLetters, maxUnrevealed, unrevealedByWord);
+
+    let i = randInt(nextLetters.length);
+
+    console.log(i, nextLetters[i]);
+
+    return nextLetters[i].i;
+}
+
+
 function startClock(state) {
     const { game } = state;
 
     const fn = () => {
         const letterCount = countLetters(game.idiom);
 
-        let i = null;
-        let m = 0;
-        do {
-            i = calcIndex(key(), game.idiom.length, game.revealed.length + m);
-            m++;
-        } while (m < 1000 && (game.idiom[i] === ' ' || game.revealed.includes(i)));
+        let i = nextLetter(game);
 
         if (i === state.position) {
             moveToNextBlank(state);
@@ -264,8 +311,8 @@ function setupKeyboardHandler(state) {
     });
 }
 
-const calcIndex = (k, n, o = 0) => {
-    var d = Date.parse(k) + (o * 3331);
+const calcIndex = (k, n) => {
+    var d = Date.parse(k);
 
     const f = Math.PI - 3; // need a number > 0 and < 1
     const s = d.valueOf() / 1000;

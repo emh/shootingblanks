@@ -29,3 +29,8 @@ export const isFinished = (state) => {
 
     return state.game.idiom === board;
 }
+
+
+
+
+// TODO copy prng from pokeer squares!
