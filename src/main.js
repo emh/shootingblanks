@@ -286,21 +286,24 @@ function setupKeyboardHandler(state) {
     document.addEventListener('keydown', (e) => {
         clearPopup();
 
-        if (game.over || !state.isSolving) return;
-
+        if (game.over) return;
 
         switch (e.key) {
             case 'Backspace':
-                handleBackspace(state);
+                if (state.isSolving) handleBackspace(state);
                 break;
             case 'Escape':
-                handleEscape(state);
+                if (state.isSolving) handleEscape(state);
                 break;
             case 'Enter':
-                handleEnter(state);
+                if (state.isSolving) {
+                    handleEnter(state);
+                } else {
+                    handleSolve(state);
+                }
                 break;
             default:
-                if (isLetter(e.key) && state.position < game.idiom.length) {
+                if (state.isSolving && isLetter(e.key) && state.position < game.idiom.length) {
                     handleLetterInput(state, e.key);
                 } else {
                     console.log(e.key);
@@ -456,21 +459,11 @@ function init(idioms) {
 }
 
 function showFailure(state) {
-    const app = document.getElementById('app');
-    const error = new PopupMessage('error');
+    const div = document.getElementById('message');
 
-    const message = "That's not it, try again!";
+    div.innerHTML = "NOPE";
 
-    const content = document.createElement('div');
-    content.setAttribute('slot', 'content');
-    content.innerHTML = `${message}<br/><br/><div class="buttons"><button>OK</button>`;
-
-    error.append(content);
-    app.append(error);
-
-    error.addEventListener('buttonClick', (e) => {
-        app.removeChild(error);
-    });
+    setTimeout(() => div.innerHTML = '', 1000);
 }
 
 function showPopup(state) {
@@ -504,7 +497,7 @@ function showPopup(state) {
             <p>Ready?</p>
             <div class="buttons">
                 <button>Help</button>
-                <button>Start</button>
+                <button autofocus>Start</button>
             </div>
         `;
 

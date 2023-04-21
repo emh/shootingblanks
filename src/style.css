@@ -300,3 +300,8 @@ html, body, #app {
   white-space: pre;
   height: 24px;
 }
+
+#message {
+  color: red;
+  font-size: 40px;
+}
