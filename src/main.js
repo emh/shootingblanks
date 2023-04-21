@@ -302,6 +302,10 @@ function setupKeyboardHandler(state) {
                     handleSolve(state);
                 }
                 break;
+            case ' ':
+                console.log('space');
+                if (!state.solving) handleSolve(state);
+                break;
             default:
                 if (state.isSolving && isLetter(e.key) && state.position < game.idiom.length) {
                     handleLetterInput(state, e.key);
