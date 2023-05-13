@@ -12,7 +12,11 @@ let timeoutId = null;
 
 const seed = Date.parse(key());
 const random = prng(seed);
-const randInt = (n) => Math.floor(random() * n);
+const randInt = (n) => {
+    const v = Math.floor(random() * n);
+    console.log(v);
+    return v;
+};
 
 const isLetter = (s) => s.length === 1 && ((s >= 'a' && s <= 'z') || (s >= 'A' && s <= 'Z'));
 
@@ -150,11 +154,7 @@ function nextLetter(game) {
         return !letter.revealed;
     })
 
-    console.log(letters, nextLetters, maxUnrevealed, unrevealedByWord);
-
     let i = randInt(nextLetters.length);
-
-    console.log(i, nextLetters[i]);
 
     return nextLetters[i].i;
 }
@@ -174,8 +174,6 @@ function startClock(state) {
 
         game.revealed.push(i);
         game.ticks += 1;
-
-        console.log(game.revealed.length, letterCount);
 
         if (game.revealed.length === letterCount) {
             game.over = true;
@@ -303,7 +301,6 @@ function setupKeyboardHandler(state) {
                 }
                 break;
             case ' ':
-                console.log('space');
                 if (!state.solving) handleSolve(state);
                 break;
             default:
@@ -316,17 +313,6 @@ function setupKeyboardHandler(state) {
 
         render(state);
     });
-}
-
-const calcIndex = (k, n) => {
-    var d = Date.parse(k);
-
-    const f = Math.PI - 3; // need a number > 0 and < 1
-    const s = d.valueOf() / 1000;
-    const r = (s * f) - Math.floor(s * f);
-    const i = Math.floor(n * r);
-
-    return i;
 }
 
 function calculateStreak(history) {
@@ -399,8 +385,6 @@ function showSuccess(state) {
         if (name === 'Share' || name === 'Copy') {
             goal('Shared');
 
-            console.log(state.game.revealed.length, state.game.idiom.length);
-
             const share = [
                 'Shooting Blanks by @emh',
                 emojiIdiom(state.game.idiom, state.game.revealed),
@@ -438,7 +422,7 @@ function init(idioms) {
     const history = getHistory();
     const newUser = isEmpty(history);
     const streak = calculateStreak(history);
-    const idiom = idioms[calcIndex(key(), idioms.length)];
+    const idiom = idioms[randInt(idioms.length)];
 
     let game = loadGame();
 
