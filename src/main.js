@@ -368,6 +368,7 @@ function showSuccess(state) {
         <button>Share</button>
         <button>Copy</button>
         <button>OK</button>
+        <button>*</button>
         </div>
     `;
 
@@ -408,7 +409,7 @@ function showSuccess(state) {
                 navigator.clipboard.writeText(data.text);
             }
         } else if (name === '*') {
-            navigator.clipboard.writeText(localStorage.getItem('history'));
+            navigator.clipboard.writeText(localStorage.getItem('shootingblanks'));
         } else {
             app.removeChild(popup);
         }
