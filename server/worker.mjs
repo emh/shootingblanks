@@ -122,10 +122,29 @@ export default {
     async fetch(request, env) {
         const url = new URL(request.url);
         if (!url.pathname.startsWith('/api/')) return env.ASSETS.fetch(request);
-        try { return await api(request, env.DB, url.pathname.slice(5), env.LAUNCH_DAY); }
-        catch (error) {
+        const origin = request.headers.get('Origin');
+        if (origin && origin !== url.origin && origin !== 'https://emh.io')
+            return json({error: 'Origin is not allowed.'}, 403);
+        let response;
+        try {
+            if (url.pathname === '/api/health' && request.method === 'GET') {
+                const ready = await env.DB.prepare('SELECT 1 FROM current_phrases LIMIT 1').first();
+                response = json({ready: !!ready, revision: env.VERSION.tag}, ready ? 200 : 503);
+            } else if (request.method === 'OPTIONS') {
+                response = new Response(null, {status: 204, headers: {
+                    'Access-Control-Allow-Methods': 'POST',
+                    'Access-Control-Allow-Headers': 'Authorization, Content-Type',
+                    'Access-Control-Max-Age': '86400'
+                }});
+            } else {
+                response = await api(request, env.DB, url.pathname.slice(5), env.LAUNCH_DAY);
+            }
+        } catch (error) {
             console.error('Game API error', error.message);
-            return json({error: 'The game could not be saved. Please try again.'}, 503);
+            response = json({error: 'The game could not be saved. Please try again.'}, 503);
         }
+        response.headers.set('Vary', 'Origin');
+        if (origin) response.headers.set('Access-Control-Allow-Origin', origin);
+        return response;
     }
 };

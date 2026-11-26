@@ -1,0 +1,68 @@
+name: Deploy production
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+jobs:
+  game:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      HEALTH_URL: https://shooting-blanks.emh.workers.dev/api/health
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+      - name: Check live API revision
+        id: api
+        run: |
+          revision=$(node scripts/worker-revision.mjs)
+          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+          if curl -fsS --max-time 15 "$HEALTH_URL" | jq -e --arg rev "$revision" '.ready and .revision == $rev'; then
+            echo "current=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Deploy Worker and puzzle library
+        if: steps.api.outputs.current != 'true' || github.event_name == 'workflow_dispatch'
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: npm run deploy
+      - name: Verify live API before publishing Pages
+        env:
+          REVISION: ${{ steps.api.outputs.revision }}
+        run: |
+          for attempt in {1..12}; do
+            if curl -fsS --max-time 10 "$HEALTH_URL" | jq -e --arg rev "$REVISION" '.ready and .revision == $rev'; then
+              exit 0
+            fi
+            sleep 5
+          done
+          exit 1
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: public
+  pages:
+    needs: game
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - name: Publish game
+        id: deploy
+        uses: actions/deploy-pages@v4

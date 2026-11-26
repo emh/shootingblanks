@@ -2,6 +2,8 @@ const $ = id => document.getElementById(id);
 const main = document.querySelector('main');
 const welcome = $('landing');
 const play = $('play');
+const apiBase = location.origin === 'https://emh.io'
+    ? 'https://shooting-blanks.emh.workers.dev/api/' : './api/';
 const localDay = () => {
     const d = new Date();
     return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
@@ -38,7 +40,7 @@ function identity() {
 }
 
 async function api(action, body = {}) {
-    const res = await fetch('./api/' + action, {
+    const res = await fetch(apiBase + action, {
         method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + identity()},
         body: JSON.stringify({day: localDay(), ...body})
     });

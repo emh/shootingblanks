@@ -16,7 +16,7 @@ Open the local URL printed by Wrangler (normally http://localhost:8787). Startup
 ## Structure
 
 - `public/` contains the HTML, CSS, favicon, and native JavaScript module. Wrangler serves these files directly with no frontend build step.
-- `server/worker.mjs` serves the same-origin game API. The browser keeps an anonymous player credential in local storage. Clearing it starts a new player identity. The server stores only its digest.
+- `server/worker.mjs` serves the game API. Local development uses the same origin. In production, the Worker accepts browser requests from `https://emh.io`. The browser keeps an anonymous player credential in local storage. Clearing it starts a new player identity. The server stores only its digest.
 - `server/schema.sql` creates the database. `server/puzzles.sql` defines the active phrase list for daily and practice draws. Edit its alphabetized entries and reapply the seed to refresh the list. Saved games keep their assigned answers.
 - The board wraps at spaces. Each entry has at least two words and seven guessable letters, with a maximum of 32 characters overall and 10 per word. Spaces and visible punctuation count toward the overall limit. Use lowercase letters and straight apostrophes, and double each apostrophe inside a SQL string.
 - Each local calendar date has one shared phrase and reveal order. The Worker picks unused phrases first, then the least recently assigned. Only the board mask goes to the client during play. The server checks guesses, records progress, and supplies the final answer when the round ends.
@@ -25,7 +25,7 @@ Open the local URL printed by Wrangler (normally http://localhost:8787). Startup
 
 Play opens today’s daily board. Practice opens an extra phrase and resumes it when you return that day. The upper-left retry button starts a fresh practice phrase. Tutorial walks through an example on the same keyboard. History lists daily boards from Day 0 and lets you play a missed puzzle or continue a saved one.
 
-Set the Worker variable `LAUNCH_DAY` to the public launch date in `YYYY-MM-DD` format before opening the production database to visitors. Each new database stores its own Day 0 on first visit. For local previews, omitting the variable uses the first visitor’s local date. History counts calendar days from launch, including days without plays. The number on a result and in shared text is the selected phrase’s permanent library ID.
+Production Day 0 is November 26, 2026. The deploy command sets `LAUNCH_DAY`, and the production database records that date on first visit. Local previews use the first visitor’s local date. History counts calendar days from launch, including days without plays. The number on a result and in shared text is the selected phrase’s permanent library ID.
 
 ## Tracking
 
@@ -44,12 +44,10 @@ WHERE g.slot = 'daily'
 GROUP BY g.day, p.phrase ORDER BY g.day DESC;
 ```
 
-## Deploy to Cloudflare
+## Production deployment
 
-Serve the static assets and API from one Worker. From an authenticated Wrangler session, create a dedicated database with `npx wrangler d1 create shooting-blanks`. Put its returned `database_id` in the existing `DB` binding in `wrangler.jsonc`, then initialize the database before publishing.
+GitHub Pages serves the game at [emh.io/shootingblanks](https://emh.io/shootingblanks/). The game API runs on `shooting-blanks.emh.workers.dev` and uses the dedicated `shooting-blanks` D1 database configured in `wrangler.jsonc`.
 
-```sh
-npx wrangler d1 execute DB --remote --file server/schema.sql
-npx wrangler d1 execute DB --remote --file server/puzzles.sql
-npx wrangler deploy
-```
+Push to `main` to run the tests and deploy. The production workflow checks the live Worker revision, applies the schema and puzzle library and deploys the Worker when its inputs change, then publishes `public/` to Pages. The read-only `/api/health` check verifies the deployed revision and that the library contains puzzles before Pages switches over.
+
+GitHub Pages uses the GitHub Actions source. Worker deployments use the repository variable `CLOUDFLARE_ACCOUNT_ID` and the Actions secret `CLOUDFLARE_API_TOKEN`. Give the token **Workers Scripts · Edit** and **D1 · Edit** on the production Cloudflare account. To publish the backend from an authenticated local Wrangler session, run `npm ci`, `npm test`, and `npm run deploy`.

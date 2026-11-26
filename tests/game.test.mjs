@@ -18,6 +18,16 @@ test('daily games and tracking persist through retries and simultaneous requests
     const server = createTestHarness({workers: [{configPath: './wrangler.jsonc'}]});
     t.after(() => server.close());
     await server.listen();
+    const preflight = await server.fetch('/api/visit', {method: 'OPTIONS', headers: {
+        Origin: 'https://emh.io', 'Access-Control-Request-Method': 'POST',
+        'Access-Control-Request-Headers': 'authorization,content-type'
+    }});
+    assert.equal(preflight.status, 204);
+    assert.equal(preflight.headers.get('Access-Control-Allow-Origin'), 'https://emh.io');
+    assert.match(preflight.headers.get('Access-Control-Allow-Headers'), /authorization/i);
+    assert.equal((await server.fetch('/api/visit', {
+        method: 'OPTIONS', headers: {Origin: 'https://example.com'}
+    })).status, 403);
     const {DB: db} = await server.getWorker().getEnv();
     const sql = async name => (await readFile(new URL('../server/' + name, import.meta.url), 'utf8')).trim();
     for (const statement of (await sql('schema.sql')).split(';').filter(s => s.trim())) {
@@ -30,6 +40,9 @@ test('daily games and tracking persist through retries and simultaneous requests
     await db.prepare("INSERT INTO puzzles (id, phrase) VALUES (1, 'piece of cake')").run();
     await db.prepare('INSERT INTO daily_puzzles (day, puzzle_id) VALUES (?, 1)').bind(yesterday).run();
     await seed();
+    const health = await server.fetch('/api/health');
+    assert.equal(health.status, 200);
+    assert.equal((await health.json()).ready, true);
     const countPuzzles = () => db.prepare('SELECT COUNT(*) FROM puzzles').first('COUNT(*)');
     const count = await countPuzzles();
     const phrases = (await db.prepare('SELECT phrase FROM current_phrases').all()).results.map(row => row.phrase);
@@ -47,12 +60,13 @@ test('daily games and tracking persist through retries and simultaneous requests
     const token = crypto.randomUUID();
     const visit = crypto.randomUUID();
     const request = (route, data = {}, key = token) => server.fetch('/api/' + route, {
-        method: 'POST', headers: { Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
+        method: 'POST', headers: { Origin: 'https://emh.io', Authorization: 'Bearer ' + key, 'Content-Type': 'application/json' },
         body: JSON.stringify({day, ...data})
     });
     const post = async (...args) => {
         const response = await request(...args);
         assert.equal(response.status, 200);
+        assert.equal(response.headers.get('Access-Control-Allow-Origin'), 'https://emh.io');
         return response.json();
     };
     assert.equal((await request('stats', {}, 'invalid')).status, 401);
