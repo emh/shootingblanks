@@ -33,7 +33,9 @@ Production Day 0 is November 26, 2026. The deploy command sets `LAUNCH_DAY`, and
 
 The private [analytics overview](https://analytics.emh.workers.dev/) shows today's visitors, starts, finishes and feedback for Shooting Blanks and Anagramish. The [Shooting Blanks report](https://analytics.emh.workers.dev/shootingblanks) includes page loads, distinct visitors, guesses, scores, elapsed times, sources and phrase familiarity. Its date filters use each action's UTC timestamp, including when someone plays an older puzzle. Both a solve and a full reveal count as a finish. Elapsed time runs from the original start to the finish, including any time away.
 
-Tagged visits store `utm_source`, `utm_medium` and `utm_campaign` in `visit_attribution`. Earlier visits retain their original referring hostname. The dashboard reads these tables directly through its Cloudflare D1 binding. The shared dashboard source and deployment live in the [Anagramish repository](https://github.com/emh/anagramish/tree/main/workers/analytics).
+Tagged visits store `utm_source`, `utm_medium` and `utm_campaign` in `visit_attribution`. Earlier visits retain their original referring hostname.
+
+The shared analytics Worker caches daily summaries and 1-, 7-, 28- and 90-day reports in this game's D1 database. Today's report also supplies the overview. When visits, games, guesses or feedback change, database triggers mark the affected 500-row blocks for the next five-minute refresh. Opening the dashboard can also advance a due refresh. A repeat view of a current report reads its cached result. Written comments load separately on request. The [shared dashboard source](https://github.com/emh/anagramish/tree/main/workers/analytics) and deployment live in the Anagramish repository.
 
 After a daily or practice round, players can answer “Have you heard this phrase before?” with Yes or No and add an optional comment. The header Feedback button accepts general comments. Responses are sent explicitly. A finished game can receive one familiarity response, including when a submission is retried or the result is reopened. The owner can load written feedback separately in the detail report.
 

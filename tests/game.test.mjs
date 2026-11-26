@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { createTestHarness } from 'wrangler';
+import { createTestHarness, unstable_splitSqlQuery } from 'wrangler';
 import { revealOrder, streak } from '../server/game.mjs';
 
 test('punctuation stays visible and streaks use consecutive calendar days', () => {
@@ -30,7 +30,7 @@ test('daily games and tracking persist through retries and simultaneous requests
     })).status, 403);
     const {DB: db} = await server.getWorker().getEnv();
     const sql = async name => (await readFile(new URL('../server/' + name, import.meta.url), 'utf8')).trim();
-    for (const statement of (await sql('schema.sql')).split(';').filter(s => s.trim())) {
+    for (const statement of unstable_splitSqlQuery(await sql('schema.sql'))) {
         await db.prepare(statement).run();
     }
     const seedStatements = (await sql('puzzles.sql')).split(';').filter(s => s.trim());
