@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <meta name="description" content="A daily phrase puzzle. Watch letters appear, pause the board, and guess the missing letters.">
+  <title>shooting blanks · daily phrase puzzle</title>
+  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div id="app">
+    <header>
+      <div class="header-tools">
+        <button id="home" class="tool" aria-label="Home" title="Home" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10h-6v-7H9v7H3z"/></svg></button>
+        <button id="restart" class="tool" aria-label="Retry practice" title="Retry practice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v6h6"/><path d="M3.5 10a8.5 8.5 0 1 1 .5 6"/></svg></button>
+      </div>
+      <div class="wordmark"><h1 class="brand">shooting <span>blanks</span></h1></div>
+      <!-- The right column is reserved for the feedback button. -->
+    </header>
+    <main>
+      <section id="landing">
+        <p class="tagline">Guess the phrase before the letters give it away.</p>
+        <nav class="buttons welcome-actions" aria-label="Game menu">
+          <button id="play" disabled>Play</button>
+          <button id="tutorial">Tutorial</button>
+          <button id="practice" disabled>Practice</button>
+          <button id="history" disabled>History</button>
+        </nav>
+        <p id="connection" role="status" hidden></p>
+        <button id="reconnect" hidden>Try again</button>
+        <section class="guide">
+          <h2>How to play</h2>
+          <p>Each blank hides one letter. Letters appear one at a time.</p>
+          <div class="board example" role="img" aria-label="F blank L L, I N">
+            <span class="word"><b class="cell lit">F</b><b class="cell empty"></b><b class="cell lit">L</b><b class="cell lit">L</b></span>
+            <span class="word"><b class="cell lit">I</b><b class="cell lit">N</b></span>
+          </div>
+          <p>Recognize it? Type the missing letters in order. Your first letter pauses the reveals. Press <strong>Enter</strong> to guess.</p>
+          <p>The more blanks you fill yourself, the higher your score.</p>
+        </section>
+        <noscript>Enable JavaScript to play.</noscript>
+        <a class="sister" href="https://anagramish.com">Play Anagramish ↗</a>
+      </section>
+    </main>
+    <footer id="controls" hidden aria-label="Game controls"></footer>
+  </div>
+
+  <template id="history-template">
+    <section class="history-screen">
+      <h2>History</h2>
+      <p id="history-status" role="status"></p>
+      <div id="history-list"></div>
+      <button id="older" hidden>Show older puzzles</button>
+    </section>
+  </template>
+
+  <template id="round-template">
+    <section class="game-screen">
+      <p id="round-name"></p>
+      <p class="intro" id="intro" role="status"></p>
+      <div id="tiles" class="board" tabindex="-1" role="img" aria-label="Phrase tiles"></div>
+      <div id="live" class="sr" role="status"></div>
+      <p class="notice" id="notice" role="status"></p>
+      <div id="tutorial-finish" class="buttons tutorial-actions" aria-label="Tutorial actions" role="group" hidden>
+        <button id="tutorial-play" disabled>Play today’s puzzle</button>
+        <button id="tutorial-replay">Replay tutorial</button>
+        <button id="tutorial-home">Home</button>
+      </div>
+      <button id="secondary" hidden>Keep watching</button>
+      <button id="retry-request" hidden>Try again</button>
+    </section>
+  </template>
+
+  <template id="finish-template">
+    <section class="game-screen finish-screen">
+      <div id="tiles" class="board" role="img" aria-label="Completed phrase"></div>
+      <div id="live" class="sr" role="status"></div>
+      <h2 id="puzzle-number"></h2>
+      <dl class="stats">
+        <dt>Time</dt><dd id="time"></dd>
+        <dt>Score</dt><dd id="score"></dd>
+      </dl>
+      <div class="buttons finish-actions">
+        <button id="share">Share</button>
+        <button id="copy">Copy</button>
+        <button id="practice">Practice</button>
+        <button id="history">History</button>
+      </div>
+      <p id="result-status" class="notice" role="status"></p>
+    </section>
+  </template>
+
+  <template id="keyboard-template">
+    <div id="keyboard" role="group" aria-label="On-screen keyboard">
+      <div class="row">
+        <button class="key" data-key="q">Q</button>
+        <button class="key" data-key="w">W</button>
+        <button class="key" data-key="e">E</button>
+        <button class="key" data-key="r">R</button>
+        <button class="key" data-key="t">T</button>
+        <button class="key" data-key="y">Y</button>
+        <button class="key" data-key="u">U</button>
+        <button class="key" data-key="i">I</button>
+        <button class="key" data-key="o">O</button>
+        <button class="key" data-key="p">P</button>
+      </div>
+      <div class="row">
+        <span class="spacer"></span>
+        <button class="key" data-key="a">A</button>
+        <button class="key" data-key="s">S</button>
+        <button class="key" data-key="d">D</button>
+        <button class="key" data-key="f">F</button>
+        <button class="key" data-key="g">G</button>
+        <button class="key" data-key="h">H</button>
+        <button class="key" data-key="j">J</button>
+        <button class="key" data-key="k">K</button>
+        <button class="key" data-key="l">L</button>
+        <span class="spacer"></span>
+      </div>
+      <div class="row">
+        <button class="key key-wide" id="enter" aria-label="Enter" data-key="Enter">Enter</button>
+        <button class="key" data-key="z">Z</button>
+        <button class="key" data-key="x">X</button>
+        <button class="key" data-key="c">C</button>
+        <button class="key" data-key="v">V</button>
+        <button class="key" data-key="b">B</button>
+        <button class="key" data-key="n">N</button>
+        <button class="key" data-key="m">M</button>
+        <button class="key key-wide" id="backspace" aria-label="Backspace" data-key="Backspace">⌫</button>
+      </div>
+    </div>
+  </template>
+
+  <dialog id="dialog" aria-labelledby="dialog-title">
+    <div class="dialog-head"><h2 id="dialog-title">How to play</h2><button id="close" class="tool" aria-label="Close">×</button></div>
+    <div id="dialog-body"></div>
+  </dialog>
+  <script type="module" src="./main.mjs"></script>
+</body>
+</html>

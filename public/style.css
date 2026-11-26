@@ -1,0 +1,333 @@
+:root {
+    color-scheme: light;
+    --fg: #222936;
+    --muted: #566170;
+    --bg: #ffffff;
+    --well: #eef1f5;
+    --line: #e0e5ec;
+    --misc: #edf0f5;
+    --misc-depth: #d0d8e3;
+    --brand-accent: #76518f;
+    --revealed: #ffe3a1;
+    --revealed-depth: #d9b771;
+    --guess: #d6c2e9;
+    --guess-depth: #b19bc7;
+    --rounded: ui-rounded, 'SF Pro Rounded', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: ui-sans-serif, system-ui, Inter, 'Segoe UI', Roboto, sans-serif;
+}
+
+* { box-sizing: border-box; }
+
+body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+}
+#app {
+    height: 100dvh;
+    display: flex;
+    flex-direction: column;
+}
+
+[hidden] { display: none !important; }
+
+button, a { touch-action: manipulation; }
+
+/* Menu actions, header controls, and keyboard keys share the same raised surface. */
+button {
+    --button-bg: var(--misc);
+    --button-ink: var(--fg);
+    --button-depth: var(--misc-depth);
+    min-height: 44px;
+    padding: 10px 16px;
+    border: 0;
+    border-radius: 12px;
+    background: var(--button-bg);
+    color: var(--button-ink);
+    box-shadow: inset 0 2px #ffffff65, 0 3px var(--button-depth);
+    line-height: 1.2;
+    font-family: inherit;
+    font-size: .94rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+button:focus-visible, a:focus-visible { outline: 2px solid var(--brand-accent); outline-offset: 3px; }
+
+button:active:not(:disabled) { translate: 0 2px; box-shadow: inset 0 1px 2px #20382b15; }
+
+button:disabled { cursor: default; color: #757f8e; }
+
+/* Equal side columns keep the title centered as header actions appear. */
+header {
+    border-bottom: 1px solid var(--line);
+    height: 73px;
+    display: grid;
+    align-items: center;
+    gap: 6px;
+    padding-inline: max(12px, env(safe-area-inset-left), env(safe-area-inset-right));
+    grid-template-columns: 1fr min(214px, calc(100% - 176px)) 1fr;
+}
+.header-tools { display: flex; gap: 6px; }
+.wordmark { container-type: inline-size; text-align: center; }
+.brand {
+    margin: 0;
+    font: 850 clamp(16px, 14cqi, 29px)/1.2 var(--rounded);
+    letter-spacing: -1.6px;
+    white-space: nowrap;
+}
+.brand span {
+    display: inline-block;
+    color: var(--brand-accent);
+    transform: rotate(-3deg);
+}
+.tool {
+    display: grid;
+    place-items: center;
+    width: 38px;
+    height: 38px;
+    min-height: 0;
+    padding: 0;
+    border-radius: 10px;
+    font-size: 1.4rem;
+}
+.tool svg {
+    width: 18px;
+    height: 18px;
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    stroke-linejoin: round;
+    stroke-linecap: round;
+}
+#tutorial, #restart { --button-bg: var(--revealed); --button-depth: var(--revealed-depth); }
+#play, #share, #retry-request { --button-bg: var(--guess); --button-depth: var(--guess-depth); }
+
+main {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    text-align: center;
+}
+
+main > section {
+    width: min(calc(100% - 36px), 460px);
+    margin: 0 auto;
+    padding-bottom: 24px;
+}
+
+h2 { font-size: 1.25rem; margin: 22px 0 12px; }
+.tagline, .guide p, .intro { line-height: 1.5; }
+.buttons {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+}
+.welcome-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+.welcome-actions button { min-height: 48px; }
+.guide { margin: 24px 0 18px; }
+.guide p { margin: 12px auto; }
+.example {
+    --tile-size: 38px;
+    --gap: 4px;
+    margin: 8px auto;
+    display: inline-flex;
+    gap: 14px;
+}
+.sister {
+    color: var(--brand-accent);
+    font-weight: 650;
+    text-underline-offset: 3px;
+    font-size: .9rem;
+}
+.game-screen {
+    container-type: inline-size;
+    width: min(calc(100% - 40px), 500px);
+    padding-top: 24px;
+}
+#round-name { margin: 0 0 12px; font-weight: 700; }
+.intro { margin: 8px 0 16px; }
+#round-name:empty, .intro:empty, .notice:empty, #history-status:empty { display: none; }
+
+/* A phrase wraps between words. Each word keeps its cells on one line. */
+.game-screen .board {
+    --gap: 5px;
+    --tile-cap: 48px;
+    --tile-size: min(var(--tile-cap), calc((100cqw - (var(--longest) - 1) * var(--gap)) / var(--longest)));
+    display: flex;
+    gap: 16px 22px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin: 12px auto 20px;
+}
+.board:focus { outline: none; }
+.word { display: inline-flex; gap: var(--gap); }
+.cell {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: var(--tile-size);
+    height: var(--tile-size);
+    font: 750 calc(var(--tile-size) * .56)/1 var(--rounded);
+    border-radius: 24%;
+    text-transform: uppercase;
+    background: var(--well);
+    box-shadow: inset 0 2px 3px #20382b09;
+}
+.cell.lit {
+    background: var(--revealed);
+    color: #493820;
+    box-shadow: inset 0 2px #ffffff80, 0 3px var(--revealed-depth);
+}
+.cell.typed {
+    background: var(--guess);
+    color: #3f2d50;
+    box-shadow: inset 0 2px #ffffff80, 0 3px var(--guess-depth);
+}
+.cell.cursor { background: #f0e9f7; }
+.cell.cursor::after {
+    content: '';
+    position: absolute;
+    width: 2px;
+    height: 45%;
+    bottom: 27%;
+    border-radius: 2px;
+    background: var(--brand-accent);
+}
+@media (prefers-reduced-motion: no-preference) {
+    .cell.new {
+        --flip-duration: 440ms;
+        animation: flip var(--flip-duration) ease-in-out,
+                   blank-face calc(var(--flip-duration) / 2) step-end;
+    }
+}
+
+@keyframes flip {
+    from { transform: perspective(220px) rotateX(-180deg); }
+    to { transform: perspective(220px) rotateX(0deg); }
+}
+
+/* Keep the blank face visible until the tile turns edge-on. */
+@keyframes blank-face {
+    from {
+        background-color: var(--well);
+        box-shadow: inset 0 2px 3px #20382b09;
+        color: transparent;
+    }
+}
+.notice { margin: 12px auto 10px; color: var(--muted); }
+
+footer {
+    flex-shrink: 0;
+    padding: 16px 12px max(16px, env(safe-area-inset-bottom));
+    border-top: 1px solid var(--line);
+}
+.stats {
+    display: grid;
+    grid-template-columns: auto auto;
+    gap: .25rem .5rem;
+    justify-content: center;
+    font-variant-numeric: tabular-nums;
+}
+.stats dt { text-align: right; }
+.stats dd { margin: 0; text-align: left; }
+.finish-actions button { flex: 1; }
+@media (max-width: 420px) {
+    .finish-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+.tutorial-actions { flex-wrap: wrap; }
+.tutorial-actions button { min-height: 42px; }
+#tutorial-play {
+    --button-bg: #92c7ed;
+    --button-depth: #6ca4cf;
+    --button-ink: #243d48;
+}
+#tutorial-play:disabled { opacity: .55; }
+#keyboard { margin: 0 auto; width: min(100%, 500px); }
+.row {
+    display: flex;
+    gap: 6px;
+    margin-bottom: 8px;
+}
+.spacer { flex: .45; }
+
+button.key {
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    height: 48px;
+    padding: 0;
+    border-radius: 8px;
+    text-transform: uppercase;
+}
+
+button.key-wide { flex: 1.5; }
+#enter { font-size: .72rem; letter-spacing: .03em; }
+#enter:not(:disabled) {
+    --button-bg: #42334f;
+    --button-depth: #302438;
+    --button-ink: white;
+}
+.history-entry {
+    width: 100%;
+    margin-bottom: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.history-entry span { color: var(--muted); font-weight: 450; }
+
+dialog {
+    background: white;
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    width: min(420px, calc(100% - 32px));
+    padding: 24px;
+}
+
+dialog::backdrop { background: #20232b75; }
+.dialog-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+dialog textarea {
+    margin-top: 1rem;
+    width: 100%;
+    font: inherit;
+}
+.sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+}
+
+@media (max-width: 520px) {
+    header { height: 63px; }
+    .game-screen .board {
+        --gap: 3px;
+        --tile-cap: 37px;
+        gap: 13px 15px;
+    }
+    .row { gap: 4px; }
+}
+
+@media (max-width: 520px) and (max-height: 680px) {
+    .game-screen .board:has(.word:nth-child(5)) {
+        --tile-cap: 30px;
+        gap: 8px 12px;
+    }
+}
+
+@media (max-height: 650px) {
+    footer { padding-block: 10px max(10px, env(safe-area-inset-bottom)); }
+    button.key { height: 40px; }
+}
