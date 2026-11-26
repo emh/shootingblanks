@@ -31,6 +31,12 @@ Production Day 0 is November 26, 2026. The deploy command sets `LAUNCH_DAY`, and
 
 `players` identifies returning browsers. `visits` records a page load even if the visitor never starts. It retains the referring hostname, when available. `daily_puzzles` maps dates to the library. `games` stores one daily round per player and date plus individual practice rounds, including reveal count, status, score, and start/finish times. `attempts` stores each submitted phrase, correctness, time, and reveal count. Resume and network retries use the existing game. Times in the database are UTC.
 
+The private [analytics overview](https://analytics.emh.workers.dev/) shows today's visitors, starts, finishes and feedback for Shooting Blanks and Anagramish. The [Shooting Blanks report](https://analytics.emh.workers.dev/shootingblanks) includes page loads, distinct visitors, guesses, scores, elapsed times, sources and phrase familiarity. Its date filters use each action's UTC timestamp, including when someone plays an older puzzle. Both a solve and a full reveal count as a finish. Elapsed time runs from the original start to the finish, including any time away.
+
+Tagged visits store `utm_source`, `utm_medium` and `utm_campaign` in `visit_attribution`. Earlier visits retain their original referring hostname. The dashboard reads these tables directly through its Cloudflare D1 binding. The shared dashboard source and deployment live in the [Anagramish repository](https://github.com/emh/anagramish/tree/main/workers/analytics).
+
+After a daily or practice round, players can answer “Have you heard this phrase before?” with Yes or No and add an optional comment. The header Feedback button accepts general comments. Responses are sent explicitly. A finished game can receive one familiarity response, including when a submission is retried or the result is reopened. The owner can load written feedback separately in the detail report.
+
 For a daily game report, run the following query in the D1 console or with `npx wrangler d1 execute DB --local --command "<SQL>"`. Use `--remote` for the deployed database.
 
 ```sql

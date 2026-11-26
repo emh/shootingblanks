@@ -33,6 +33,7 @@ export function board(game) {
         day: game.day, status: game.status, version: game.version, mask,
         revealed: game.revealed, total: order.length, score: game.score,
         answer: game.status === 'playing' ? null : game.phrase,
+        ...(game.heard_before ? {heardBefore: game.heard_before} : {}),
         ...(game.finished_at ? {elapsedSeconds: game.elapsed_seconds, puzzleId: game.puzzle_id} : {})
     };
 }

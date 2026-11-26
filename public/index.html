@@ -17,7 +17,7 @@
         <button id="restart" class="tool" aria-label="Retry practice" title="Retry practice" hidden><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 4v6h6"/><path d="M3.5 10a8.5 8.5 0 1 1 .5 6"/></svg></button>
       </div>
       <div class="wordmark"><h1 class="brand">shooting <span>blanks</span></h1></div>
-      <!-- The right column is reserved for the feedback button. -->
+      <button id="feedback-button" type="button">Feedback</button>
     </header>
     <main>
       <section id="landing">
@@ -89,6 +89,14 @@
         <button id="history">History</button>
       </div>
       <p id="result-status" class="notice" role="status"></p>
+      <aside class="phrase-feedback" aria-labelledby="phrase-question">
+        <h2 id="phrase-question">Have you heard this phrase before?</h2>
+        <div class="buttons" id="phrase-choices">
+          <button type="button" data-heard="yes">Yes</button>
+          <button type="button" data-heard="no">No</button>
+        </div>
+        <p id="phrase-receipt" class="notice" role="status" tabindex="-1"></p>
+      </aside>
     </section>
   </template>
 
@@ -136,6 +144,21 @@
   <dialog id="dialog" aria-labelledby="dialog-title">
     <div class="dialog-head"><h2 id="dialog-title">How to play</h2><button id="close" class="tool" aria-label="Close">×</button></div>
     <div id="dialog-body"></div>
+  </dialog>
+  <dialog id="feedback-dialog" aria-labelledby="feedback-title">
+    <div class="dialog-head"><h2 id="feedback-title">Send feedback</h2><button id="feedback-close" type="button" class="tool" aria-label="Close feedback">×</button></div>
+    <form id="feedback-form">
+      <fieldset id="feedback-question">
+        <legend>Have you heard this phrase before?</legend>
+        <label><input type="radio" name="heard" value="yes"> Yes</label>
+        <label><input type="radio" name="heard" value="no"> No</label>
+      </fieldset>
+      <label for="feedback-comment">Your comment<span id="comment-optional"> (optional)</span></label>
+      <textarea id="feedback-comment" maxlength="1000" rows="4" aria-describedby="feedback-note"></textarea>
+      <p id="feedback-note">Up to 1,000 characters. Please leave out personal information.</p>
+      <button id="feedback-submit" type="submit">Send feedback</button>
+      <p id="feedback-status" class="notice" role="status"></p>
+    </form>
   </dialog>
   <script type="module" src="./main.mjs"></script>
 </body>

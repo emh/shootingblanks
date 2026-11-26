@@ -70,14 +70,25 @@ test('daily games and tracking persist through retries and simultaneous requests
         return response.json();
     };
     assert.equal((await request('stats', {}, 'invalid')).status, 401);
-    const recordVisit = () => post('visit', {visit, referrer:'https://example.com/private-path?q=abc'});
+    const recordVisit = () => post('visit', {visit, referrer:'https://example.com/private-path?q=abc',
+        source:' newsletter ', medium:'weekly\nemail', campaign:'a'.repeat(120)});
     assert.deepEqual(await recordVisit(), {game:null, dayZero:day});
     await recordVisit();
     assert.equal(await db.prepare('SELECT COUNT(*) FROM visits').first('COUNT(*)'), 1);
     assert.equal(await db.prepare('SELECT referrer_host FROM visits').first('referrer_host'), 'example.com');
+    assert.deepEqual(await db.prepare('SELECT source,medium,campaign FROM visit_attribution').first(),
+        {source:'newsletter', medium:'weekly email', campaign:'a'.repeat(100)});
+    const feedback = {id:crypto.randomUUID(), screen:'landing', comment:'  More phrases please. '};
+    await Promise.all([post('feedback', feedback), post('feedback', feedback)]);
+    assert.deepEqual(await db.prepare('SELECT comment,game_id,heard_before FROM feedback').first(),
+        {comment:'More phrases please.', game_id:null, heard_before:null});
+    assert.equal((await request('feedback', {...feedback, id:crypto.randomUUID(), comment:'  '})).status, 400);
+    assert.equal((await request('feedback', {...feedback, id:crypto.randomUUID(), comment:'x'.repeat(1001)})).status, 400);
+    const vote = {id:crypto.randomUUID(), heardBefore:'yes', screen:'finish', comment:'I grew up with this one.'};
     const [first, replay] = await Promise.all([post('start'),post('start')]);
     assert.deepEqual(first, replay);
     assert.equal(first.game.answer, null);
+    assert.equal((await request('feedback', vote)).status, 400);
     assert.doesNotMatch(first.game.mask, /[a-z]/);
     const phrase = await db.prepare('SELECT phrase FROM puzzles JOIN daily_puzzles ON puzzle_id = id WHERE day = ?').bind(day).first('phrase');
     assert.ok(phrases.includes(phrase));
@@ -100,6 +111,11 @@ test('daily games and tracking persist through retries and simultaneous requests
     assert.ok(Number.isInteger(win.elapsedSeconds) && win.elapsedSeconds >= 0);
     assert.deepEqual((await post('start')).game, win);
     assert.deepEqual((await post('attempt', {version:2,guess:phrase})).game, win);
+    assert.equal((await request('feedback', {...vote, heardBefore:'hard'})).status, 400);
+    assert.deepEqual(await Promise.all([post('feedback', vote), post('feedback', vote)]), [{heardBefore:'yes'}, {heardBefore:'yes'}]);
+    assert.deepEqual(await post('feedback', {...vote, id:crypto.randomUUID(), heardBefore:'no'}), {heardBefore:'yes'});
+    assert.equal((await post('start')).game.heardBefore, 'yes');
+    assert.equal(await db.prepare('SELECT COUNT(*) FROM feedback').first('COUNT(*)'), 2);
     assert.equal(await db.prepare('SELECT COUNT(*) FROM attempts').first('COUNT(*)'), 2);
     assert.deepEqual(await post('stats'), {played:1, solved:1, best:win.score, streak:1});
 
@@ -107,12 +123,14 @@ test('daily games and tracking persist through retries and simultaneous requests
     await post('visit', {visit:crypto.randomUUID()}, other);
     let game = (await post('start', {}, other)).game;
     assert.deepEqual(game, first.game);
+    assert.equal((await request('feedback', vote, other)).status, 400);
     while (game.status === 'playing') {
         game = (await post('reveal', {version:game.version}, other)).game;
     }
     assert.equal(game.answer, phrase);
     assert.equal(game.status, 'revealed');
     assert.equal(game.score, 0);
+    assert.deepEqual(await post('feedback', {...vote, id:crypto.randomUUID(), heardBefore:'no', comment:''}, other), {heardBefore:'no'});
     assert.deepEqual(await post('stats', {}, other), {played:1, solved:0, best:0, streak:1});
     assert.equal((await request('start', {puzzleDay:yesterday})).status, 400);
     const practice = crypto.randomUUID();
@@ -122,6 +140,8 @@ test('daily games and tracking persist through retries and simultaneous requests
     assert.notEqual(practiceAnswer, phrase);
     const practiceWin = await post('attempt', {practice, version:0, guess:practiceAnswer});
     assert.equal(practiceWin.game.status, 'solved');
+    assert.deepEqual(await post('feedback', {...vote, id:crypto.randomUUID(), heardBefore:'no', comment:'', practice}), {heardBefore:'no'});
+    assert.equal((await post('start', {practice})).game.heardBefore, 'no');
     assert.equal(practiceWin.game.puzzleId, await db.prepare('SELECT id FROM puzzles WHERE phrase = ?').bind(practiceAnswer).first('id'));
     assert.deepEqual(await post('stats'), {played:1, solved:1, best:win.score, streak:1});
     assert.deepEqual(await post('history'), {games:[{day, status:'solved', score:win.score}]});
@@ -134,6 +154,9 @@ test('daily games and tracking persist through retries and simultaneous requests
     assert.equal(archived.game.mask, '_____ __ ____');
     assert.equal((await post('attempt', {puzzleDay:yesterday, version:0, guess:'piece of cake'})).game.status, 'solved');
     assert.equal((await post('history')).games.length, 2);
+    for (let i = 0; i < 2; i++) await post('feedback', {...feedback, id:crypto.randomUUID()});
+    assert.equal((await request('feedback', {...feedback, id:crypto.randomUUID()})).status, 429);
+    assert.deepEqual(await post('feedback', feedback), {ok:true});
 
     // A retired puzzle can still be finished, but fresh draws use the current pool.
     await db.prepare("DELETE FROM current_phrases WHERE phrase NOT IN ('cat got your tongue?', 'beginner''s luck')").run();

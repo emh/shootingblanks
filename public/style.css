@@ -100,6 +100,13 @@ header {
     stroke-linejoin: round;
     stroke-linecap: round;
 }
+#feedback-button {
+    justify-self: end;
+    min-height: 38px;
+    padding: 6px 9px;
+    border-radius: 10px;
+    font-size: .83rem;
+}
 #tutorial, #restart { --button-bg: var(--revealed); --button-depth: var(--revealed-depth); }
 #play, #share, #retry-request { --button-bg: var(--guess); --button-depth: var(--guess-depth); }
 
@@ -236,6 +243,13 @@ footer {
 .stats dt { text-align: right; }
 .stats dd { margin: 0; text-align: left; }
 .finish-actions button { flex: 1; }
+.phrase-feedback {
+    margin: 24px auto 0;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+}
+.phrase-feedback h2 { font-size: 1rem; margin: 0 0 12px; }
+#phrase-choices button { min-width: 72px; }
 @media (max-width: 420px) {
     .finish-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -302,6 +316,12 @@ dialog textarea {
     width: 100%;
     font: inherit;
 }
+#feedback-form { margin-top: 16px; }
+#feedback-form textarea { margin-top: 6px; padding: 8px; }
+#feedback-question { margin: 0 0 18px; padding: 0; border: 0; }
+#feedback-question legend, #feedback-form > label { font-weight: 650; }
+#feedback-question label { display: inline-block; padding: 10px 12px 0 0; }
+#feedback-note { color: var(--muted); font-size: .85rem; }
 .sr {
     position: absolute;
     width: 1px;

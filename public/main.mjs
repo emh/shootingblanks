@@ -1,3 +1,5 @@
+import { setupFeedback } from './feedback.mjs';
+
 const $ = id => document.getElementById(id);
 const main = document.querySelector('main');
 const welcome = $('landing');
@@ -44,7 +46,12 @@ async function api(action, body = {}) {
         method: 'POST', headers: {'Content-Type': 'application/json', Authorization: 'Bearer ' + identity()},
         body: JSON.stringify({day: localDay(), ...body})
     });
-    if (!res.ok) throw new Error('Game request failed');
+    if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        const error = new Error(body.error || 'Game request failed');
+        error.status = res.status;
+        throw error;
+    }
     return res.json();
 }
 
@@ -135,7 +142,7 @@ function lessonLetters() {
 
 function schedule() {
     clearTimeout(timer);
-    if (screen !== 'round' || busy || retry || mode !== 'watch' || document.hidden || $('dialog').open) return;
+    if (screen !== 'round' || busy || retry || mode !== 'watch' || document.hidden || $('dialog').open || $('feedback-dialog').open) return;
     if (kind === 'tutorial') {
         if (game.mask.endsWith('_')) timer = setTimeout(() => {
             const previous = game.mask;
@@ -186,7 +193,16 @@ async function connect() {
     const status = welcome.querySelector('#connection');
     reconnect.hidden = true;
     try {
-        const result = await api('visit', {visit, referrer: document.referrer});
+        const tags = new URLSearchParams(location.search);
+        let referrer;
+        if (document.referrer) {
+            const from = new URL(document.referrer);
+            const gamePath = new URL('./', location.href).pathname;
+            if (from.origin !== location.origin || !from.pathname.startsWith(gamePath)) referrer = from.origin;
+        }
+        const result = await api('visit', {
+            visit, referrer, source: tags.get('utm_source'), medium: tags.get('utm_medium'), campaign: tags.get('utm_campaign')
+        });
         dayZero = result.dayZero;
         updatePlayAvailability();
         welcome.querySelector('#practice').disabled = false;
@@ -303,6 +319,25 @@ function openDialog(title) {
     $('dialog').showModal();
 }
 
+function showPhraseResponse(answer) {
+    const choices = $('phrase-choices');
+    choices.hidden = Boolean(answer);
+    $('phrase-receipt').textContent = answer ? 'Your answer: ' + (answer === 'yes' ? 'Yes' : 'No') + '. Thanks for your feedback.' : '';
+}
+
+const openFeedback = setupFeedback({
+    api,
+    onOpen: () => clearTimeout(timer),
+    onClose: savedPhrase => {
+        if (savedPhrase && screen === 'finish') $('phrase-receipt').focus();
+        schedule();
+    },
+    onPhraseSaved: answer => {
+        game.heardBefore = answer;
+        showPhraseResponse(answer);
+    }
+});
+
 function renderFinish(lastMask) {
     showScreen('finish', $('finish-template').content.cloneNode(true));
     $('restart').hidden = kind !== 'practice';
@@ -321,6 +356,11 @@ function renderFinish(lastMask) {
     $('copy').onclick = () => copyResult(text, status);
     $('practice').onclick = () => startRound('practice', localDay(), true);
     $('history').onclick = openHistory;
+    showPhraseResponse(game.heardBefore);
+    $('phrase-choices').onclick = event => {
+        const answer = event.target.closest('button')?.dataset.heard;
+        if (answer) openFeedback({screen, puzzleDay: day, practice: kind === 'practice' ? practiceId : undefined}, answer);
+    };
 }
 
 async function shareResult(text, status) {
@@ -380,7 +420,7 @@ $('controls').addEventListener('click', event => {
 });
 $('restart').onclick = () => startRound('practice', localDay(), true);
 document.addEventListener('keydown', e => {
-    if (screen !== 'round' || !game || $('dialog').open || e.altKey || e.ctrlKey || e.metaKey || busy || retry || mode === 'done') return;
+    if (screen !== 'round' || !game || $('dialog').open || $('feedback-dialog').open || e.altKey || e.ctrlKey || e.metaKey || busy || retry || mode === 'done') return;
     if (/^[a-z]$/i.test(e.key) || e.key === 'Backspace') {
         type(e.key);
         $('tiles').focus({preventScroll: true});
@@ -402,6 +442,7 @@ $('tutorial').onclick = () => startRound('tutorial');
 $('history').onclick = openHistory;
 $('home').onclick = home;
 $('reconnect').onclick = connect;
+$('feedback-button').onclick = () => openFeedback({screen: screen === 'round' && kind === 'tutorial' ? 'tutorial' : screen});
 $('close').onclick = () => $('dialog').close();
 $('dialog').addEventListener('close', schedule);
 document.addEventListener('visibilitychange', () => {

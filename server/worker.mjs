@@ -16,11 +16,46 @@ function referrerHost(referrer) {
     } catch { return null; }
 }
 
-const gameQuery = `SELECT g.*, p.phrase,
+function campaignLabel(value) {
+    return typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, ' ').trim().slice(0, 100) || null : null;
+}
+
+const gameQuery = `SELECT g.*, p.phrase, f.heard_before,
     unixepoch(g.finished_at) - unixepoch(g.started_at) AS elapsed_seconds
     FROM games g
     JOIN puzzles p ON p.id = g.puzzle_id
+    LEFT JOIN feedback f ON f.game_id = g.id
     WHERE g.player_id = ? AND g.day = ? AND g.slot = ?`;
+
+async function saveFeedback(db, player, data, getGame) {
+    const {id, heardBefore = null, comment, screen} = data;
+    if (!uuid.test(id) || !['landing','round','tutorial','finish','history'].includes(screen) ||
+        typeof comment !== 'string' || comment.length > 1000) return json({error: 'Please check your feedback.'}, 400);
+    const message = comment.trim();
+    if (heardBefore !== null) {
+        if (!['yes','no'].includes(heardBefore) || screen !== 'finish') return json({error: 'Choose Yes or No.'}, 400);
+        const game = await getGame();
+        if (!game?.finished_at) return json({error: 'Finish the phrase before sending a response.'}, 400);
+        const [, saved] = await db.batch([
+            db.prepare(`INSERT INTO feedback(id,player_id,game_id,heard_before,comment,screen)
+                VALUES (?,?,?,?,?,?) ON CONFLICT DO NOTHING`).bind(id, player, game.id, heardBefore, message, screen),
+            db.prepare('SELECT heard_before FROM feedback WHERE game_id = ? AND player_id = ?').bind(game.id, player)
+        ]);
+        return saved.results.length ? json({heardBefore: saved.results[0].heard_before})
+            : json({error: 'Reopen feedback and try again.'}, 409);
+    }
+    if (!message) return json({error: 'Write a comment before sending.'}, 400);
+    // Keep comment retries idempotent, including when two requests arrive together.
+    const [,, receipt] = await db.batch([
+        db.prepare('INSERT OR IGNORE INTO players(id) VALUES (?)').bind(player),
+        db.prepare(`INSERT INTO feedback(id,player_id,comment,screen)
+            SELECT ?,?,?,? WHERE (SELECT COUNT(*) FROM feedback WHERE player_id = ? AND game_id IS NULL
+                AND created_at > datetime('now','-1 day')) < 3 ON CONFLICT DO NOTHING`)
+            .bind(id, player, message, screen, player),
+        db.prepare('SELECT id FROM feedback WHERE id = ? AND player_id = ? AND game_id IS NULL').bind(id, player)
+    ]);
+    return receipt.results.length ? json({ok: true}) : json({error: 'Please wait a day before sending more comments.'}, 429);
+}
 
 async function stats(db, player, day) {
     const totals = await db.prepare(`SELECT COUNT(*) AS played,
@@ -52,14 +87,19 @@ async function api(request, db, route, launchDay) {
     if (route === 'visit') {
         if (launchDay !== undefined && !validDay(launchDay)) throw new Error('Invalid LAUNCH_DAY');
         if (!uuid.test(data.visit)) return json({error: 'Invalid visit.'}, 400);
-        await db.batch([
+        const writes = [
             db.prepare('INSERT OR IGNORE INTO calendar(id,day_zero) VALUES (1,?)').bind(launchDay ?? today),
             db.prepare('INSERT OR IGNORE INTO players(id) VALUES (?)').bind(player),
             db.prepare('INSERT OR IGNORE INTO visits(player_id,id,referrer_host) VALUES (?,?,?)')
                 .bind(player, data.visit, referrerHost(data.referrer))
-        ]);
+        ];
+        const tags = [data.source, data.medium, data.campaign].map(campaignLabel);
+        if (tags.some(Boolean)) writes.push(db.prepare(`INSERT OR IGNORE INTO visit_attribution
+            (player_id,visit_id,source,medium,campaign) VALUES (?,?,?,?,?)`).bind(player, data.visit, ...tags));
+        await db.batch(writes);
         return json({dayZero: await db.prepare('SELECT day_zero FROM calendar').first('day_zero'), game: board(await getGame())});
     }
+    if (route === 'feedback') return saveFeedback(db, player, data, getGame);
     if (route === 'history') {
         const rows = await db.prepare("SELECT day,status,score FROM games WHERE player_id = ? AND slot = 'daily' AND day <= ? ORDER BY day DESC").bind(player, today).all();
         return json({games: rows.results});
