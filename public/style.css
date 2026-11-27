@@ -246,7 +246,6 @@ footer {
     grid-template-rows: minmax(4.5rem, auto) auto;
     gap: 12px;
     padding: 16px 12px max(16px, env(safe-area-inset-bottom));
-    border-top: 1px solid var(--line);
 }
 .stats {
     display: grid;
