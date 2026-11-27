@@ -63,7 +63,6 @@
       <div id="tiles" class="board" tabindex="-1" role="img" aria-label="Phrase tiles"></div>
       <div id="live" class="sr" role="status"></div>
       <p class="notice" id="notice" role="status"></p>
-      <button id="secondary" disabled>Solve</button>
       <button id="retry-request" hidden>Try again</button>
     </section>
   </template>
@@ -101,8 +100,9 @@
     </section>
   </template>
 
-  <template id="keyboard-template">
-    <div id="keyboard" role="group" aria-label="On-screen keyboard">
+  <template id="controls-template">
+    <button id="secondary" disabled>Solve</button>
+    <div id="keyboard" role="group" aria-label="On-screen keyboard" inert>
       <div class="row">
         <button class="key" data-key="q">Q</button>
         <button class="key" data-key="w">W</button>

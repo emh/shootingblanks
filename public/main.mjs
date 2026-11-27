@@ -127,7 +127,7 @@ function render(lastMask) {
         $('tiles').replaceChildren();
         $('tiles').setAttribute('aria-label','Loading phrase');
     }
-    $('controls').hidden = !solving;
+    $('keyboard').inert = !solving;
     const locked = inputLocked();
     for (const key of $('keyboard').querySelectorAll('button')) key.disabled = locked || !solving;
     $('enter').disabled = locked || !solving || draft.length !== game.total - game.revealed;
@@ -229,7 +229,7 @@ async function connect() {
 
 function startRound(type, date = localDay(), fresh = false) {
     showScreen('round', $('round-template').content.cloneNode(true));
-    $('controls').append($('keyboard-template').content.cloneNode(true));
+    $('controls').append($('controls-template').content.cloneNode(true));
     $('secondary').onclick = () => {
         if (mode === 'watch') solve();
         else if (mode === 'solve') watch();
