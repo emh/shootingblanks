@@ -11,7 +11,7 @@ function files(path) {
 }
 
 const hash = createHash('sha256');
-for (const path of [...files('server'), 'package.json', 'package-lock.json', 'wrangler.jsonc'].sort()) {
+for (const path of [...files('server'), 'public/game-rules.mjs', 'package.json', 'package-lock.json', 'wrangler.jsonc'].sort()) {
     hash.update(path.replaceAll('\\', '/') + '\0');
     hash.update(createHash('sha256').update(readFileSync(path)).digest());
 }

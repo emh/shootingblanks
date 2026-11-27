@@ -1,4 +1,4 @@
-import { board, streak } from './game.mjs';
+import { board, playTurn, streak } from './game.mjs';
 
 const uuid = /^[a-f0-9]{8}-[a-f0-9]{4}-4[a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/i;
 const json = (body, status = 200) => Response.json(body, {status, headers: {'Cache-Control': 'no-store'}});
@@ -130,32 +130,23 @@ async function api(request, db, route, launchDay) {
 
     const game = await getGame();
     if (!game) return json({error: 'Start the puzzle first.'}, 404);
-    const current = board(game);
-    // A retry or a second tab receives the latest board without counting twice.
-    if (data.version !== game.version || game.status !== 'playing') return json({game: current, stale: true});
+    const turn = playTurn(game, route, data);
+    if (turn.stale) return json({game: board(game), stale: true});
+    if (turn.error) return json({error: turn.error}, 400);
+    const next = turn.game;
+    // Apply the move once even if two requests read the same starting version.
     const guard = "WHERE id = ? AND version = ? AND status = 'playing'";
-    if (route === 'reveal') {
-        const done = game.revealed + 1 === current.total;
-        await db.prepare(`UPDATE games SET revealed = revealed + 1, version = version + 1,
-            status = ?, score = ?, finished_at = CASE WHEN ? THEN CURRENT_TIMESTAMP END ${guard}`)
-            .bind(done ? 'revealed' : 'playing', done ? 0 : null, +done, game.id, game.version).run();
-    } else {
-        if (typeof data.guess !== 'string') return json({error: 'Enter a phrase.'}, 400);
-        const guess = data.guess.trim().toLowerCase();
-        if (guess.length !== current.mask.length || !Array.from(current.mask).every((c,i) =>
-            c === '_' ? /^[a-z]$/.test(guess[i]) : c === guess[i])) return json({error: 'Fill every blank.'}, 400);
-        const correct = guess === game.phrase;
-        const score = correct ? Math.round(100 * (1 - game.revealed / current.total)) : null;
-        const [attempt] = await db.batch([
-            db.prepare(`INSERT INTO attempts(game_id,version,guess,revealed,correct)
-                SELECT id,version,?,revealed,? FROM games ${guard}`).bind(guess, +correct, game.id, game.version),
-            db.prepare(`UPDATE games SET version = version + 1, status = ?, score = ?,
-                finished_at = CASE WHEN ? THEN CURRENT_TIMESTAMP END ${guard}`)
-                .bind(correct ? 'solved' : 'playing', score, +correct, game.id, game.version)
-        ]);
-        return json({game: board(await getGame()), correct: attempt.meta.changes ? correct : null});
-    }
-    return json({game: board(await getGame())});
+    const save = db.prepare(`UPDATE games SET revealed = ?, version = ?, status = ?, score = ?,
+        finished_at = CASE WHEN ? THEN CURRENT_TIMESTAMP END ${guard}`)
+        .bind(next.revealed, next.version, next.status, next.score, +(next.status !== 'playing'), game.id, game.version);
+    let saved;
+    if (route === 'attempt') {
+        const record = db.prepare(`INSERT INTO attempts(game_id,version,guess,revealed,correct)
+            SELECT id,version,?,revealed,? FROM games ${guard}`).bind(turn.guess, +turn.correct, game.id, game.version);
+        [, saved] = await db.batch([record, save]);
+    } else saved = await save.run();
+    const latest = board(await getGame());
+    return saved.meta.changes ? json({game: latest, correct: turn.correct}) : json({game: latest, stale: true});
 }
 
 export default {

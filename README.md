@@ -1,6 +1,6 @@
 # Shooting Blanks
 
-One daily phrase, revealed a letter at a time. Type a letter to pause the reveals, fill the remaining blanks in order, and press **Enter**. A wrong guess resumes reveals. The score is the percentage of letters still hidden when you solve, rounded to the nearest point. Watching the whole phrase appear scores zero. Finishing on consecutive local calendar days builds a streak.
+One daily phrase, revealed a letter at a time. Press **Enter** or choose **Solve** to pause the reveals and show the keyboard. Fill the remaining blanks in order and press **Enter** to guess. Choose **More letters** to clear your draft and resume reveals. A wrong guess also resumes reveals. The score is the percentage of letters still hidden when you solve, rounded to the nearest point. Watching the whole phrase appear scores zero. Finishing on consecutive local calendar days builds a streak.
 
 ## Run locally
 
@@ -23,7 +23,7 @@ Open the local URL printed by Wrangler (normally http://localhost:8787). Startup
 
 ## Play modes and launch day
 
-Play opens today’s daily board. Practice opens an extra phrase and resumes it when you return that day. The upper-left retry button starts a fresh practice phrase. Tutorial walks through an example on the same keyboard. History lists daily boards from Day 0 and lets you play a missed puzzle or continue a saved one.
+Play opens today’s daily board. Practice opens an extra phrase and resumes it when you return that day. The upper-left retry button starts a fresh practice phrase. Tutorial starts with three letters hidden and uses the same reveal timing, guessing rules, and scoring as a regular round. It runs locally and can be replayed. History lists daily boards from Day 0 and lets you play a missed puzzle or continue a saved one.
 
 Production Day 0 is November 26, 2026. The deploy command sets `LAUNCH_DAY`, and the production database records that date on first visit. Local previews use the first visitor’s local date. History counts calendar days from launch, including days without plays. The number on a result and in shared text is the selected phrase’s permanent library ID.
 

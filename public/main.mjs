@@ -1,4 +1,5 @@
 import { setupFeedback } from './feedback.mjs';
+import { createTutorial } from './tutorial.mjs';
 
 const $ = id => document.getElementById(id);
 const main = document.querySelector('main');
@@ -10,7 +11,6 @@ const localDay = () => {
     const d = new Date();
     return [d.getFullYear(), String(d.getMonth() + 1).padStart(2, '0'), String(d.getDate()).padStart(2, '0')].join('-');
 };
-const lesson = 'piece of cake';
 const dayMs = 86400000;
 const daysSinceLaunch = date => Math.round((Date.parse(date) - Date.parse(dayZero)) / dayMs);
 let dayZero;
@@ -23,8 +23,10 @@ let nextHistoryDay;
 const visit = crypto.randomUUID();
 let day = localDay();
 let game = null;
+let tutorial;
 let mode = 'ready';
-let busy = false;
+let pendingAction = null;
+let submitAfterReveal = false;
 let retry = null;
 let timer;
 let draft = '';
@@ -92,7 +94,8 @@ function draw(mask, answer, lastMask) {
 function showScreen(name, content) {
     clearTimeout(timer);
     requestGroup++;
-    busy = false;
+    pendingAction = null;
+    submitAfterReveal = false;
     retry = null;
     screen = name;
     main.replaceChildren(content);
@@ -103,71 +106,76 @@ function showScreen(name, content) {
     $('controls').replaceChildren();
 }
 
+function inputLocked() {
+    return !game || pendingAction === 'attempt' || submitAfterReveal || !!retry;
+}
+
 function render(lastMask) {
     if (screen !== 'round') return;
     const solving = mode === 'solve';
-    const done = mode === 'done';
-    if (done && kind !== 'tutorial') {
+    if (mode === 'done') {
         renderFinish(lastMask);
         return;
     }
     $('restart').hidden = kind !== 'practice';
     $('round-name').textContent = kind === 'tutorial' ? 'Tutorial' : '';
-    if (kind === 'tutorial') {
-        $('intro').textContent = done ? 'You filled the blanks!'
-            : 'The phrase is “piece of cake.” Type ' + lessonLetters().toUpperCase().split('').join(', then ') + ' and press Enter.';
-    } else {
-        $('intro').textContent = '';
-    }
+    $('intro').textContent = kind !== 'tutorial' ? '' : solving
+        ? 'Fill the blanks from left to right, then press Enter to guess.'
+        : 'Press Enter or choose Solve when you recognize the phrase.';
     if (game) draw(game.mask, game.answer, lastMask);
     else {
         $('tiles').replaceChildren();
         $('tiles').setAttribute('aria-label','Loading phrase');
     }
-    $('controls').hidden = done;
-    $('tutorial-finish').hidden = !done;
-    $('tutorial-play').disabled = play.disabled;
-    const locked = busy || !!retry || !game;
-    for (const key of $('keyboard').querySelectorAll('button')) key.disabled = locked;
+    $('controls').hidden = !solving;
+    const locked = inputLocked();
+    for (const key of $('keyboard').querySelectorAll('button')) key.disabled = locked || !solving;
     $('enter').disabled = locked || !solving || draft.length !== game.total - game.revealed;
-    $('secondary').hidden = !solving || kind === 'tutorial';
+    $('secondary').textContent = solving ? 'More letters' : 'Solve';
+    $('secondary').classList.toggle('solve-action', !solving);
     $('secondary').disabled = locked;
     $('retry-request').hidden = !retry;
-    $('notice').textContent = message || (done ? 'Score ' + game.score + ' / 100' : !game ? 'Loading phrase…' : '');
-}
-
-function lessonLetters() {
-    return Array.from(lesson).filter((_, i) => game.mask[i] === '_').join('');
+    $('notice').textContent = message || (!game ? 'Loading phrase…' : '');
 }
 
 function schedule() {
     clearTimeout(timer);
-    if (screen !== 'round' || busy || retry || mode !== 'watch' || document.hidden || $('dialog').open || $('feedback-dialog').open) return;
-    if (kind === 'tutorial') {
-        if (game.mask.endsWith('_')) timer = setTimeout(() => {
-            const previous = game.mask;
-            game.mask = 'p_ece of ca_e';
-            game.revealed++;
-            render(previous);
-        }, 1000);
-    } else timer = setTimeout(() => update('reveal', {version: game.version}), (game.revealed + 1) * 1000);
+    if (screen !== 'round' || pendingAction || retry || mode !== 'watch' || document.hidden || $('dialog').open || $('feedback-dialog').open) return;
+    timer = setTimeout(() => update('reveal', {version: game.version}), (game.revealed + 1) * 1000);
+}
+
+function fillBlanks(mask, letters) {
+    let index = 0;
+    return mask.replaceAll('_', () => letters[index++] || '_');
 }
 
 async function update(action, body = {}) {
-    if (busy) return;
+    if (pendingAction) return;
     const group = requestGroup;
-    busy = true;
+    pendingAction = action;
     retry = null;
     clearTimeout(timer);
     message = '';
     render();
     const previous = game?.mask;
     try {
-        const result = await api(action, {puzzleDay: day, practice: kind === 'practice' ? practiceId : undefined, ...body});
+        const result = tutorial ? tutorial(action, body)
+            : await api(action, {puzzleDay: day, practice: kind === 'practice' ? practiceId : undefined, ...body});
         if (group !== requestGroup) return;
         game = result.game;
-        draft = '';
-        mode = game.status !== 'playing' ? 'done' : 'watch';
+        if (action === 'reveal' && mode === 'solve' && game.status === 'playing') {
+            // Keep letters typed while the request was in flight on their original tiles.
+            const typed = fillBlanks(previous, draft);
+            if (submitAfterReveal && Array.from(game.mask).some((c, i) => c !== '_' && c !== typed[i])) {
+                submitAfterReveal = false;
+                message = 'A revealed letter changed your guess. Check the blanks and press Enter again.';
+            }
+            draft = Array.from(typed).filter((letter, i) => letter !== '_' && game.mask[i] === '_').join('');
+        } else {
+            draft = '';
+            mode = game.status !== 'playing' ? 'done' : 'watch';
+            submitAfterReveal = false;
+        }
         if (result.correct === false) message = 'That’s not the phrase. Watch for another letter and try again.';
         if (result.stale && mode === 'watch') message = 'Your latest board is loaded.';
     } catch {
@@ -176,16 +184,20 @@ async function update(action, body = {}) {
         message = 'Couldn’t reach the game. Check your connection and try again.';
     } finally {
         if (group === requestGroup) {
-            busy = false;
+            pendingAction = null;
             render(previous);
             schedule();
         }
+    }
+    if (group === requestGroup && submitAfterReveal && !retry) {
+        submitAfterReveal = false;
+        submitGuess();
     }
 }
 
 function updatePlayAvailability() {
     play.disabled = !dayZero || localDay() < dayZero;
-    if (screen === 'round') $('tutorial-play').disabled = play.disabled;
+    if (screen === 'finish' && kind === 'tutorial') $('tutorial-play').disabled = play.disabled;
 }
 
 async function connect() {
@@ -218,25 +230,17 @@ async function connect() {
 function startRound(type, date = localDay(), fresh = false) {
     showScreen('round', $('round-template').content.cloneNode(true));
     $('controls').append($('keyboard-template').content.cloneNode(true));
-    $('secondary').onclick = watch;
+    $('secondary').onclick = () => {
+        if (mode === 'watch') solve();
+        else if (mode === 'solve') watch();
+    };
     $('retry-request').onclick = () => retry();
-    $('tutorial-play').onclick = () => startRound('daily');
-    $('tutorial-replay').onclick = () => startRound('tutorial');
-    $('tutorial-home').onclick = home;
     kind = type;
     day = date;
     game = null;
     draft = message = '';
     mode = 'ready';
-    if (kind === 'tutorial') {
-        const mask = 'p_ece of ca__';
-        const total = lesson.replaceAll(' ', '').length;
-        game = {mask, total, revealed: total - 3, status:'playing'};
-        mode = 'watch';
-        render();
-        schedule();
-        return;
-    }
+    tutorial = type === 'tutorial' ? createTutorial(day) : null;
     if (kind === 'practice') {
         const key = 'shooting-blanks.practice.' + day;
         try {
@@ -292,6 +296,7 @@ function solve() {
     draft = '';
     message = '';
     render();
+    $('tiles').focus({preventScroll: true});
 }
 
 function watch() {
@@ -304,9 +309,7 @@ function watch() {
 }
 
 function type(key) {
-    if (screen !== 'round' || !game || busy || retry) return;
-    if (mode === 'watch' && key !== 'Backspace') solve();
-    if (mode !== 'solve') return;
+    if (screen !== 'round' || mode !== 'solve' || inputLocked()) return;
     if (key === 'Backspace') draft = draft.slice(0, -1);
     else if (/^[a-z]$/i.test(key) && draft.length < game.total - game.revealed) draft += key.toLowerCase();
     render();
@@ -342,13 +345,23 @@ function renderFinish(lastMask) {
     showScreen('finish', $('finish-template').content.cloneNode(true));
     $('restart').hidden = kind !== 'practice';
     draw(game.mask, game.answer, lastMask);
-    const number = (kind === 'practice' ? 'Practice #' : '#') + game.puzzleId;
+    const number = kind === 'tutorial' ? 'Tutorial' : (kind === 'practice' ? 'Practice #' : '#') + game.puzzleId;
     const minutes = Math.floor(game.elapsedSeconds / 60);
     const time = [minutes, game.elapsedSeconds % 60].map(n => String(n).padStart(2, '0')).join(':');
     $('puzzle-number').textContent = number;
     $('time').textContent = time;
     $('score').textContent = game.score + ' / 100';
 
+    if (kind === 'tutorial') {
+        $('finish-actions').hidden = true;
+        $('phrase-feedback').hidden = true;
+        $('tutorial-finish').hidden = false;
+        $('tutorial-play').disabled = play.disabled;
+        $('tutorial-play').onclick = () => startRound('daily');
+        $('tutorial-replay').onclick = () => startRound('tutorial');
+        $('tutorial-home').onclick = home;
+        return;
+    }
     const squares = Array.from(game.mask, c => c === '_' ? '🟨' : /[a-z]/.test(c) ? '⬜' : c).join('');
     const text = ['Shooting Blanks · ' + number, squares, 'Time ' + time, 'Score ' + game.score + '/100'].join('\n');
     const status = $('result-status');
@@ -393,23 +406,13 @@ async function copyResult(text, status) {
 }
 
 function submitGuess() {
-    if (busy || retry || mode !== 'solve' || !game || draft.length !== game.total - game.revealed) return;
-    if (kind === 'tutorial') {
-        if (draft === lessonLetters()) {
-            game.status = 'solved';
-            game.answer = lesson;
-            game.score = Math.round(100 * draft.length / game.total);
-            mode = 'done';
-            message = '';
-        } else {
-            draft = '';
-            message = 'Try again. Read the missing letters from left to right.';
-        }
+    if (mode !== 'solve' || inputLocked() || draft.length !== game.total - game.revealed) return;
+    if (pendingAction === 'reveal') {
+        submitAfterReveal = true;
         render();
         return;
     }
-    let i = 0;
-    const guess = game.mask.replaceAll('_', () => draft[i++]);
+    const guess = fillBlanks(game.mask, draft);
     return update('attempt', {version: game.version, guess});
 }
 
@@ -420,12 +423,18 @@ $('controls').addEventListener('click', event => {
 });
 $('restart').onclick = () => startRound('practice', localDay(), true);
 document.addEventListener('keydown', e => {
-    if (screen !== 'round' || !game || $('dialog').open || $('feedback-dialog').open || e.altKey || e.ctrlKey || e.metaKey || busy || retry || mode === 'done') return;
+    if (screen !== 'round' || inputLocked() || $('dialog').open || $('feedback-dialog').open || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (mode === 'watch' && e.key === 'Enter') {
+        e.preventDefault();
+        if (!e.repeat) $('secondary').click();
+        return;
+    }
+    if (mode !== 'solve') return;
     if (/^[a-z]$/i.test(e.key) || e.key === 'Backspace') {
         type(e.key);
         $('tiles').focus({preventScroll: true});
     }
-    else if (e.key === 'Escape' && mode === 'solve' && kind !== 'tutorial') watch();
+    else if (e.key === 'Escape') watch();
     else if (e.key === 'Enter' && (!e.target.closest('button,a') || e.target.closest('#keyboard'))) submitGuess();
     else return;
     e.preventDefault();
@@ -442,7 +451,7 @@ $('tutorial').onclick = () => startRound('tutorial');
 $('history').onclick = openHistory;
 $('home').onclick = home;
 $('reconnect').onclick = connect;
-$('feedback-button').onclick = () => openFeedback({screen: screen === 'round' && kind === 'tutorial' ? 'tutorial' : screen});
+$('feedback-button').onclick = () => openFeedback({screen: kind === 'tutorial' && ['round', 'finish'].includes(screen) ? 'tutorial' : screen});
 $('close').onclick = () => $('dialog').close();
 $('dialog').addEventListener('close', schedule);
 document.addEventListener('visibilitychange', () => {

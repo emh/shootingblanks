@@ -109,6 +109,17 @@ header {
 }
 #tutorial, #restart { --button-bg: var(--revealed); --button-depth: var(--revealed-depth); }
 #play, #share, #retry-request { --button-bg: var(--guess); --button-depth: var(--guess-depth); }
+.solve-action {
+    width: 4.5rem;
+    aspect-ratio: 1;
+    padding: 0;
+    border-radius: 50%;
+}
+.solve-action:enabled {
+    --button-bg: #bf2734;
+    --button-ink: white;
+    --button-depth: #901b26;
+}
 
 main {
     flex: 1;

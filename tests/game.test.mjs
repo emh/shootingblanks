@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { createTestHarness, unstable_splitSqlQuery } from 'wrangler';
 import { revealOrder, streak } from '../server/game.mjs';
+import { createTutorial } from '../public/tutorial.mjs';
 
 test('punctuation stays visible and streaks use consecutive calendar days', () => {
     const order = revealOrder('ill-gotten gains', '2026-11-25');
@@ -12,6 +13,34 @@ test('punctuation stays visible and streaks use consecutive calendar days', () =
     const days = ['2026-10-31','2026-11-01'];
     assert.equal(streak(days, '2026-11-02'), 2);
     assert.equal(streak(days, '2026-11-03'), 0);
+});
+
+test('a tutorial can miss, resume reveals, solve, replay, or watch to the end', () => {
+    const day = '2026-11-27';
+    const tutorial = createTutorial(day);
+    const start = tutorial('start').game;
+    assert.equal(start.mask.match(/_/g).length, 3);
+    assert.equal(start.answer, null);
+    const miss = tutorial('attempt', {version: start.version, guess: start.mask.replaceAll('_', 'z')});
+    assert.equal(miss.correct, false);
+    assert.equal(miss.game.mask, start.mask);
+    const next = tutorial('reveal', {version: miss.game.version}).game;
+    assert.equal(next.revealed, start.revealed + 1);
+    const win = tutorial('attempt', {version: next.version, guess: 'piece of cake'});
+    assert.equal(win.correct, true);
+    assert.equal(win.game.status, 'solved');
+    assert.equal(win.game.score, Math.round(200 / start.total));
+
+    const replay = createTutorial(day);
+    let game = replay('start').game;
+    assert.deepEqual(game, start);
+    for (let count = start.revealed + 1; count <= start.total; count++) {
+        game = replay('reveal', {version: game.version}).game;
+        assert.equal(game.revealed, count);
+    }
+    assert.equal(game.status, 'revealed');
+    assert.equal(game.score, 0);
+    assert.equal(game.mask, 'piece of cake');
 });
 
 test('daily games and tracking persist through retries and simultaneous requests', async t => {
