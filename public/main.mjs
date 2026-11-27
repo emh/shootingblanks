@@ -350,7 +350,7 @@ function renderFinish(lastMask) {
     $('score').textContent = game.score + ' / 100';
 
     const squares = Array.from(game.mask, c => c === '_' ? '🟨' : /[a-z]/.test(c) ? '⬜' : c).join('');
-    const text = ['Shooting Blanks · ' + number, squares, 'Time ' + time, 'Score ' + game.score + '/100', location.origin + location.pathname].join('\n');
+    const text = ['Shooting Blanks · ' + number, squares, 'Time ' + time, 'Score ' + game.score + '/100'].join('\n');
     const status = $('result-status');
     $('share').onclick = () => shareResult(text, status);
     $('copy').onclick = () => copyResult(text, status);
